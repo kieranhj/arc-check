@@ -1,0 +1,268 @@
+Quote:
+Can we have a technical write-up of how this was achieved ? I'd be very interested to know the techniques (WinUAE debugger is fucking awkward.. I got as far as finding it's dual playfield)
+
+Sure. The effect indeed runs in dual playfield mode, displaying two 6-layer checkerboard effects on top of each other, using 3 bitplanes each. The occasional 13th layer consists of sprites. In the following, I will describe how to cram 6 layers into 3 bitplanes (using less than half a frame of time with 6 bitplanes of DMA load).
+
+As a precalculation, I generate bitmaps describing what the rows and columns of a checkerboard layer look like for each depth. The demo uses 512 different depths, and for each depth there is a 1024-pixel row and a 512-pixel column. A checkerboard layer is conceptually a (suitably shifted and cropped) per-pixel xor between a row from the row map and the corresponding column from the column map.
+
+The row map looks like this (red lines indicate the center 320 pixels):
+
+BB Image
+
+The column map looks like this (red lines indicate the center 256 pixels):
+
+BB Image
+
+As you can see, only the lower 8 bits of each 16-bit word in the column map are used. I will get back to why that is.
+
+
+For each layer, a suitable section of a row in the row map is extracted, using the blitter. The row is chosen based on the depth of the layer, and the section to extract within that row is based on the X offset of the layer. Similarly, the depth also selects a column from the column map, and the Y offset of the layer speficies which bit in that column corresponds to which scanline of the display.
+
+On each scanline, each layer will either show the extracted section or the bitwise inverse of it (selected by the corresponding bit in the selected column from the column map). Any combination can potentially occur. With 6 layers, this means there are 64 different possible scanlines. The basic strategy for the effect is thus:
+
+1. For each of the 64 combinations, produce a 3 bitplanes deep scanline corresponding to that combination by logically combining the extracted sections using the blitter.
+
+2. At each scanline of the display, using the copper, set the bitplane pointers to point to the appropriate combination.
+
+The combination operation must be such that, with a suitable palette, closer layers appear in front of farther layers. To achieve this, it is not necessary to produce all 64*3 bitplane lines, as some of them can be shared. The redundancy in the palette (there are 7 colors available, but only 6 layers) is key here. This figure illustrates how the combination is done:
+BB Image
+The block on the top shows all 64 combinations of bit values from the layer sections along the horizontal axis. Colored means 1 (opaque), black means 0 (transparent). The next block shows the computed logical combinations of the layers. The first two rows (T1 and T2) are temprary values needed in the computation, and the last three (P3, P2 and P1) are the resulting bitplane contents. The formulas for each row are written to the right. Note that each formula has at most 3 inputs, which means it can be computed using the blitter.
+
+The bottom block shows the resulting color (as indexed by the bit values in the 3 bitplanes). Each layer has its own entry in the palette, except for layer 5, which occupies both color 2 and color 3. The resulting color corresponds to the front-most layer, as desired.
+
+With these formulas, bitplane 3 only depends on the first 4 layers, so only 16 combinations need to be computed. Bitplanes 2 and 1 each depend on 5 layers, so they need 32 combinations each.
+
+Some of the blits can be combined to save a bit of overhead. Instead of 4+8+16+32+32 = 92 blits, it is done using 4+8+4+8+4 = 28 blits. Furthermore, the front 6 and back 6 layers can share the same blits (with twice the width).
+
+
+The bitplane pointers are constructed by blitting the appropriate sections of the selcted columns from the column map into the copperlist. To facilitate this, the constructed scanlines are placed with a stride of 128 bytes. All lines are placed within a 64k-aligned block, at these line indices (lower 16 bits of address divided by 128):
+Code:
+
+Bitplane 3: 48-63  (16 lines)
+Bitplane 2: 64-95  (32 lines)
+Bitplane 1: 96-127 (32 lines)
+
+With this layout, the state (original or inverse) of each layer corresponds to individual bits in the bitplane pointers. The upper 16 bits of the pointers are fixed (for a particular frame). The lower 16 bits look like this:
+Code:
+
+Bitplane 3: 00011DCBA0xxxxxx
+Bitplane 2: 0010EDCBA0xxxxxx
+Bitplane 1: 0011FDCBA0xxxxxx
+
+Where the states of layers 1-6 are denoted by A-F, and the x's are an offset into the scanline (different for the front 6 and back 6 layers).
+
+Each blitted column must be extracted from the column map (all other bits in the word masked out), shifted from its bit position in the column map to its designated destination bit in the bitplane pointer, and then combined with the other columns. Since the columns are placed at bit positions 0-7 of each word in the column map and must end up at bit positions 7-11 in the bitplane pointer, the shift is always to the left (0 to 11 places), so the extraction blits always use descending mode.
+
+First, layers 1-4 are combined in pairs into a temporary space, and then the pairs are combined with the fixed bits into the bitplane 3 pointers. In the pairwise combination blits, the columns are sourced on A and B, so they can be independently shifted (which is possible since the shifts are always in the same direction). The A channel is masked by the first word mask, and the B channel is masked by constant data on the C channel. Bitplanes 2 and 1 are each a combination of bitplane 3, another layer (masked and shifted), and constant data.
+
+
+So that is how the effect works. To script it, I include a huge (but very compressible) block of explicit scripting data, specifying, for each frame, how many layers are shown, and the position, depth and color of each layer. Where possible, I store the values as deltas from the previous frame. The script is generated by a Lua program, using a custom tool.
+
+
+From https://www.pouet.net/topic.php?which=11224&page=3:
+On Amiga 500, the primary challenge platform, we saw contributions from Axis (10 layers), Bifat (10 layers),
+Dalton (8 layers overscanned) and myself (12 layers plus an occasional 13th layer with limitations).
+Additionally, a bunch of Atari coders took it upon themselves to show us that you don't need any fancy blitter
+and copper to make a checkerboard. As far as I understand, it requires special hardware tricks just to show the
+320x256 resolution specified in the challenge. We saw Atari ST contributions from spkr (6 layers),
+lsl (4 layers fullscreen) and tin (7 layers).
+
+Archie thoughts
+~~~
+This is going to be hard. A MODE 9 screen at 320x240 pixels = 9600 words.
+For a checkerboard perhaps writing half the pixels on average, so 4800 words.
+Writing a word is minimum 2 cycles with STM x4 registers, so  19,200c per layer without pixel masking.
+At 160,000c per 50Hz frame we could only write 8 layers by brute force overdraw.
+To write every word on the screen at 50Hz we get ~16c per word including the write.
+
+If using the Lucky Number approach, would need to read from a precomputed pixel map for each layer.
+But this could be a binary map, so 32 bits = 32 pixels = 10 reads per scanline.
+Need to XOR this with a value that is constant per scanline per layer, but this could potentially be
+stored in a single register - just use 1 bit per layer?
+Going to run out of registers real quick:
+- 1x R for ptr to scanline data for layer
+- 1x R for scanline data
+- 1x R for accumulating results
+- 1x R for scanline toggle
+- Plus temporaries
+
+Alternatively calculate the pixel on/off value for the layer's depth.
+Stepping 1 pixel on screen moves by a fixed-point amount in texture space.
+Bit like a texture map but we can calculate the texture without lookup.
+For each pixel u += du. Fix square size, just sampling at a distance, so
+the texture can be read from the first non-fractional bit. XOR'd with v bit.
+- 1x R for u value per layer
+- 1x R for du value per layer
+- 1x R for accumulating results
+
+Standard screen load / mask / store approach with pre-shifted lines.
+
+; Render from back to front. Assume back layer is rendered separately as direct copy.
+mov r10, #0x11111111    ; colour word for this layer
+mov r9, #0xffffffff     ; checker parity (0 or -1)
+
+; per line.
+ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
+; 8c
+eor r0, r0, r9          ; invert parity of checkerboard
+; repeat for r1, r2, r3
+; 4c
+ldmia r12, {r4-r7}      ; load 4 words of screen
+; 8c
+bic r4, r4, r0          ; mask out screen pixels to be written
+and r11, r0, r10        ; mask colour with source word
+orr r4, r4, r11         ; mask in colour word
+; 3c
+; repeat for r5, r6, r7
+; 3c+3c+3c
+stmia r12!, {r4-r7}     ; write 4 words back to screen
+; 8c
+; 4 words = 32 pixels = 40c (~1.25c per pixel)
+; repeat 10 times for line = 400c
+; repeat for 256 lines = 102400c
+; but we only have 160000c per frame at 8MHz!!! OMFG.
+
+Could use RasterMan to toggle the colour of a layer on correct scanline?
+Generate code that only writes the pixels we need for a given line?
+Say we had the colour words in r0-r3, then just blat optimal code.
+Or have r1-r8 w/ words containing 1-8 pixels?
+Would need 8x lots of code for each piel position.
+Or one piece of code per pixel offset into the square?
+Argh!
+
+Simples ;)
+Generate code to plot only the necessary pixels for each depth and each x position for both parities.
+512 x 320 x 2 = 327680 functions!
+But! We hash each function to determine the duplicated code, which should reduce this significantly.
+Only one way to find out. :)
+
+Camera distance -160, so at zpos 0 half width of a square is 160.
+x' = vpw * (x - cx) / (z - cz)
+z = (160 * 160 / x') - 160
+Where x=hw of square=160, vpw=viewport width=160
+x' = 160 * (160) / (0 - -160) = 160
+Down to x' = 8
+8 = 160 * 160 / (z + 160)
+8 * (z + 160) = 160 * 160
+z = 3200 - 160 = 3040
+In 512 steps.
+z = -16, x' = 160*160 / (-16 + 160) = 177.7 (sqw=355)
+Say x' = 200, z = 64 - 160 = -96
+Ahhhh, we don't wrap around at all, we just have a viewport into the canvas, hence having
+1024 pixels wide. We can only move from 0 -> 1023-320 = 703 but enough for our animation.
+So how many functions do we need? 704 x 2 (parity) x depths (say 256?). <Urgh.>
+704*512=360448 fns=1408k of jump tables. :\ Not including the code!!
+Assume we need 4*x' fns, each with on average 1x mask op, 1x stm and rts = 6 instructions miniumum = 24 bytes.
+Not going to work as this alone would be over 8mb just for one fn each!!
+Start again. :(
+
+Wondering if there's a way to use RasterMan to create a screen that is a viewport into a canvas
+that is 1024 pixels wide => so each scanline is 128 words wide but we only view 40 of them.
+Would be massive overdraw, but we could blit the appropriate slice of squares onto this canvas using the same principle as above.
+Probably still need 8x fns for the 8x pixel shifts but...
+Number of fns = parity * depths * shifts = 2 * 512 * 8 = 8192 (32k jump table).
+But extra massive overdraw. Assume writing 64/128 words on average (if we're super lucky.)
+Minimum 2c per word to store.
+64*2*256 = 32768c per layer = 4.88 layers at 8MHz (7.32 layers at 12MHz)
+Assume the .88 is taken up with overhead & music = 4 layers max.
+This is probably optimistic as well, as the smallest squares will require more read & store ops.
+Could reduce the canvas size. :\ Even then, doesn't help much? Maybe 7 layers at 80 words wide?
+Also could reduce the vertical resolution of the viewport, say 240p, so a best case would be 40*2*240=19200c = 8.33 layers at 8MHz.
+Worth trying?
+
+20/3/2022
+~~~
+OK, I nerd-sniped Sarah at ABUG and she immediately came up with a better solution. :)
+Each layer can only have an odd or even parity based on it depth & X offset, therefore
+there are only M=2^N possible unique lines on the screen, where N is the number of layers.
+Say we have N layers, each at depth Dn. We generate our M possible lines as all combinations
+of odd & even parity, by drawing each line Dn from furthest to nearest, at offset Xn.
+
+We then need to calculate which of the M possible lines is displayed on each scanline of the screen.
+To do this we start at scanline 0 with each layer being at Yn and put the parity for each layer (0 or 1) into a separate bit.
+    line_no[scanline] = parity(Y0) | parity(Y1) << 1 | parity(Y2) << 2 | etc.
+Then update each Yn according to the depth of the layer. So Yn += delta(Dn).
+
+Once we have that table we can just copy the corresponding line [0-M) to the screen.
+This way we only have to composite M lines, with the full 256 scanlines being blitted.
+
+; per line.
+ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
+; 8c
+ldmia r12, {r4-r7}      ; load 4 words of screen
+; 8c
+bic r4, r4, r0          ; mask out screen pixels to be written
+and r11, r0, r10        ; mask colour with source word
+orr r4, r4, r11         ; mask in colour word
+; 3c
+; repeat for r5, r6, r7
+; 3c+3c+3c
+stmia r12!, {r4-r7}     ; write 4 words back to screen
+; 8c
+; 4 words = 32 pixels = 36c
+; repeat 10 times for full line = 360c
+; repeat for N layers = N*360c
+; repeat for M combinations = N*M*360c = N * 2^N * 360c
+
+Can do a regular blit for the screen
+ldm/stm *10 = 16c*10 = 160c per line.
+Times 256 scanlines = 40960c
+
+For 4 layers = 23040c + 40960c = 64000 ~40%
+For 5 layers = 57600c + 40960c = 98560c ~62%
+For 6 layers = 138240c + 40960c = 179,200c ~112%
+(Doesn't include generating the scanline table.)
+(And don't forget the VIDC DMA cost.)
+
+Can probably optimise the M line generation by reusing the source data.
+Read words of the source once but write all M/2 lines together or in batches.
+Then invert the source data and write the other M/2 lines? Something like that.
+- Save the source load
+- Have a register for dest address increment.
+add r12, r12, r9            ; add destination stride
+; 1c
+- Do the screen read/mask/write x4 words.
+; 28c
+- Unroll M/2 -1 times without the read.
+; 29c
+- Invert the source bits x4 words.
+eor r0, r0, r8              ; where r8=0xffffffff
+; 4c
+- Repeat the code another M/2 times.
+- Finally unroll this 10x for 40 words.
+
+Cost to write 1 layer M times = (36c + 29c*((M/2)-1) + 4c + 29c*(M/2)) * 10
+Total cost then *N for all layers.
+
+For 4 layers = (36+29*7 +4 + 29*8)*10*4 = (40+203+232)*10 = 4750 (per layer) * 4 = 19000c? (approx)
+For 5 layers = (40+29*15 + 29*16)*10*5 = (40+435+464)*10*5 = 9390 * 5 = 46950c? (saves 18.5% cycles?)
+For 6 layers = (40+29*31 + 29*32)*10*6 = (40+899+928)*10*6 = 18670 * 6 = 112020c (70% frame @ 8MHz)
+
+What if we used RasterMan to select which line buffer to display on which scanline?
+This would maybe allow for 6 layers at 8MHz? Although music player is expensive...
+Assume 8,000,000/50=160000c/frame @ 8MHz or 240000c/frame @ 12Mhz.
+
+Wouldn't be able to do 7 layers if this costs 7 * 128 * 360 = 322560c :S
+Although saving the source reads as costs ~0.8151*322560 ~= 262918c (but this is still >100%c @ 12MHz.)
+
+RAM required at 1024x512 = 256k per shift x 8 = 2Mb!! Blurgh.
+Or could perhaps reduce this to 640x512 (double screen res) for a total of 1280k.
+Can at least precalculate all of this...
+
+STEPS
+~~~
+1. Code to generate depth pattern at 320x256.
+2. Extend this to 8 pixel shifts.
+3. Extend this to 640x512 or 1024x512.
+4. Simple code to generate 2^N layer combos. Start with N=3 layers.
+5. Code to write the selected layer pattern to screen buffer for N layers.
+6. Optimise layer code by removing duplicated source reads.
+7. Performance timings at N=4/5/6?
+8. Add music player.
+9. Implement double buffering of generated layers.
+10. Add RasterMan to select screen buffer address on a per scanline basis.
+11. Optimise RasterMan to minimal IRQ overhead as necessary.
+12. Some sort of sequencing (Rocket?!?!) including swapping between checks and text.
+    (Consider some sort of trick starting with 3/4/5x layers but writing over the top of it,
+    before switching to more layers that can only be done with RM.)
+13. Win!
