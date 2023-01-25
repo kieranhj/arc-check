@@ -145,9 +145,12 @@ main:
 	.endif
 
 	; LATE INITALISATION HERE!
-
 	adr r2, grey_palette
 	bl palette_set_block
+
+	bl get_next_screen_for_writing
+	ldr r11, screen_addr
+	bl make_check_rows
 
 	; Sync tracker.
 	.if _ENABLE_ROCKET
@@ -231,9 +234,9 @@ main_loop:
 	bl get_next_screen_for_writing
 
 	SET_BORDER 0x00ff00	; green
-	mov r0, #0xffffffff
-	ldr r11, screen_addr
-	bl screen_cls
+;	mov r0, #0xffffffff
+;	ldr r11, screen_addr
+;	bl screen_cls
 
 	SET_BORDER 0xffff00	; cyan
 
@@ -544,6 +547,8 @@ screen_addr:
 ; ============================================================================
 ; Additional code modules
 ; ============================================================================
+
+.include "src/check-rows.asm"
 
 .include "lib/maths.asm"
 .include "lib/mode9-screen.asm"

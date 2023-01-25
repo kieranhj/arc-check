@@ -1,11 +1,13 @@
 .equ OS_WriteC, 0
+.equ OS_WriteS, 1
+.equ XOS_WriteS, OS_WriteS | (1<<17)
 .equ OS_WriteO, 2
 .equ OS_WriteN, 0x46
 .equ OS_NewLine, 3
 .equ OS_Byte, 6
-.equ XOS_Byte, OS_Byte | (1 << 17)
+.equ XOS_Byte, OS_Byte | (1<<17)
 .equ OS_Word, 7
-.equ XOS_Word, OS_Word | (1 << 17)
+.equ XOS_Word, OS_Word | (1<<17)
 .equ OS_File, 8
 .equ OS_Exit, 0x11
 .equ OS_BreakPt, 0x17
@@ -13,10 +15,15 @@
 .equ OS_ChangeDynamicArea, 0x2a
 .equ OS_GenerateError, 0x2b
 .equ OS_ReadEscapeState, 0x2c
+.equ OS_ServiceCall, 0x30
+.equ XOS_ServiceCall, OS_ServiceCall | (1<<17)
 .equ OS_ReadVduVariables, 0x31
 .equ OS_ReadMonotonicTime, 0x42
 .equ OS_Plot, 0x45
+.equ OS_ReadMemMapInfo, 0x51
 .equ OS_ReadDynamicArea, 0x5c
+.equ OS_FindMemMapEntries, 0x60
+.equ XOS_FindMemMapEntries, OS_FindMemMapEntries | (1<<17)
 .equ OS_ConvertHex2, 0xd1
 .equ OS_ConvertHex4, 0xd2
 .equ OS_ConvertHex8, 0xd4
@@ -39,6 +46,7 @@
 .equ IKey_Space, 0x9d
 .equ IKey_Return, 0xB6
 .equ IKey_Escape, 0x8f
+.equ IKey_A, 0xbe
 .equ IKey_S, 0xae
 .equ IKey_D, 0xcd
 .equ IKey_R, 0xcc
@@ -69,6 +77,8 @@
 .equ EventV, 0x10
 .equ Event_VSync, 4
 
+.equ Sound_Configure, 0x40140
+
 .equ QTM_Load, 0x47E40
 .equ QTM_Start, 0x47E41
 .equ QTM_Stop, 0x47E42
@@ -77,12 +87,17 @@
 .equ QTM_Pos, 0x47E46
 .equ QTM_Volume, 0x47E48
 .equ QTM_SetSampleSpeed, 0x47E49
+.equ QTM_DMABuffer, 0x47E4A
+.equ XQTM_DMABuffer, QTM_DMABuffer | (1<<17)
 .equ QTM_Stereo, 0x47E4D
 .equ QTM_VUBarControl, 0x47E50
 .equ QTM_ReadVULevels, 0x47E51
 .equ QTM_SoundControl, 0x47E58
+.equ XQTM_SoundControl, QTM_SoundControl | (1<<17)
 .equ QTM_MusicOptions, 0x47E5E
 .equ QTM_MusicInterrupt, 0x47E5F
+.equ QTM_Debug, 0x47E62
+.equ XQTM_Debug, QTM_Debug | (1<<17)
 
 .equ MusicInterrupt_SongEnded, 0
 
