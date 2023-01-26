@@ -2,7 +2,7 @@
 ; Prototype Framework - stripped back from tipsy-cube.
 ; ============================================================================
 
-.equ _DEBUG, 0
+.equ _DEBUG, 1
 .equ _ENABLE_RASTERMAN, 0
 .equ _ENABLE_MUSIC, 0
 .equ _ENABLE_ROCKET, 0
@@ -13,7 +13,7 @@
 
 ; ============================================================================
 
-.equ Screen_Banks, 1
+.equ Screen_Banks, 2
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
 .equ Screen_Height, 256
@@ -120,7 +120,9 @@ main:
 	bl rasters_init
 	.endif
 	bl maths_init
-	; bl initialise_span_buffer
+
+	; Make buffers.
+	bl check_rows_init
 
 	.if _ENABLE_ROCKET
 	bl rocket_init
@@ -147,10 +149,6 @@ main:
 	; LATE INITALISATION HERE!
 	adr r2, grey_palette
 	bl palette_set_block
-
-	bl get_next_screen_for_writing
-	ldr r11, screen_addr
-	bl make_check_rows
 
 	; Sync tracker.
 	.if _ENABLE_ROCKET
@@ -237,6 +235,9 @@ main_loop:
 ;	mov r0, #0xffffffff
 ;	ldr r11, screen_addr
 ;	bl screen_cls
+
+	ldr r12, screen_addr
+	bl plot_check_line_combos
 
 	SET_BORDER 0xffff00	; cyan
 

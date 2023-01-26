@@ -251,8 +251,8 @@ Can at least precalculate all of this...
 
 STEPS
 ~~~
-1. Code to generate depth pattern at 320x256.
-2. Extend this to 8 pixel shifts.
+1. Code to generate depth pattern at 320x256. - DONE
+2. Extend this to 8 pixel shifts. - DONE
 3. Extend this to 640x512 or 1024x512.
 4. Simple code to generate 2^N layer combos. Start with N=3 layers.
 5. Code to write the selected layer pattern to screen buffer for N layers.

@@ -31,6 +31,44 @@ memc_table_no_adr:
 
 ; ============================================================================
 
+.p2align 6
+check_rows_pixel_0_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_1_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_2_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_3_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_4_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_5_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_6_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_rows_pixel_7_no_adr:
+	.skip Rows_Width * Rows_Height / 2
+
+.p2align 6
+check_line_combos:
+	.skip Screen_Stride * Check_Combos
+
+; ============================================================================
+
 .include "lib/lib_bss.asm"
 
 ; ============================================================================
