@@ -370,6 +370,36 @@ check_layer_dx:
     .skip Check_Layers * 4
 
 ; ========================================================================
+
+update_check_layers:
+    str lr, [sp, #-4]!
+
+    ; TODO: A less long-hand way of achieving this.
+    .if _ENABLE_ROCKET
+    .set _layer, 0
+    .rept Check_Layers
+    .set _track_base, _layer * 4
+    mov r0, #_track_base + 0
+    bl rocket_sync_get_val
+    str r1, check_layer_x_pos + _track_base
+
+    mov r0, #_track_base + 1
+    bl rocket_sync_get_val
+    str r1, check_layer_y_pos + _track_base
+
+    mov r0, #_track_base + 2
+    bl rocket_sync_get_val
+    str r1, check_layer_z_pos + _track_base
+
+    ; TODO: Layer colour in _track_base + 3
+    .set _layer, _layer + 1
+    .endr
+    .endif
+
+    ldr pc, [sp], #4
+
+
+; ========================================================================
 ; X, Y, Z positions for each layer.
 ; ========================================================================
 
@@ -392,13 +422,13 @@ check_layer_x_pos:
     .long 103 << 16
 
 check_layer_y_pos:
-    .long 1 << 16
-    .long 2 << 16
-    .long 3 << 16
-    .long 4 << 16
-    .long 5 << 16
-    .long 6 << 16
-    .long 7 << 16
+    .long 160 << 16
+    .long 20 << 16
+    .long 30 << 16
+    .long 40 << 16
+    .long 50 << 16
+    .long 60 << 16
+    .long 70 << 16
 
 check_layer_z_pos:
     .long 256 << 16

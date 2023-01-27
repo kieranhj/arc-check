@@ -4,9 +4,9 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_RASTERMAN, 0
-.equ _ENABLE_MUSIC, 0
-.equ _ENABLE_ROCKET, 0
-.equ _SYNC_EDITOR, (_ENABLE_ROCKET && 0)
+.equ _ENABLE_MUSIC, 1
+.equ _ENABLE_ROCKET, 1
+.equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
 .equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
@@ -26,7 +26,8 @@
 ; ============================================================================
 
 .include "lib/swis.h.asm"
-.include "lib/config.h.asm"
+.include "src/lib-config.h.asm"
+.include "src/rocket-config.h.asm"
 
 ; ============================================================================
 
@@ -88,14 +89,16 @@ main:
 .if _ENABLE_MUSIC
 	; QTM Init.
 	; Required to make QTM play nicely with RasterMan.
+	.if _ENABLE_RASTERMAN
 	mov r0, #4
 	mov r1, #-1
 	mov r2, #-1
 	swi QTM_SoundControl
+	.endif
 
 	; Load module
 	mov r0, #0
-	adr r1, music_data
+	ldr r1, music_data_p
 	swi QTM_Load
 .endif
 
@@ -180,6 +183,10 @@ main_loop:
 	ldr r0, vsync_delta
 	bl rocket_update
 	.endif
+
+	SET_BORDER 0x00ff00	; green
+
+	bl update_check_layers
 
 	SET_BORDER 0x0000ff	; red
 
@@ -606,10 +613,6 @@ grey_palette:
 	.long 0x00EEEEEE
 	.long 0x00FFFFFF
 .endif
-.if _ENABLE_MUSIC
-music_data:
-.incbin "data/music/arcchoon.mod"
-.endif
 
 palette_osword_block:
     .skip 8
@@ -619,6 +622,9 @@ palette_osword_block:
     ; green
     ; blue
     ; (pad)
+
+music_data_p:
+	.long music_data_no_adr
 
 ; ============================================================================
 ; DATA Segment

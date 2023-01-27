@@ -5,9 +5,20 @@
 .data   ; TODO: Do we need an rodata segment?
 
 .p2align 6
+.if _ENABLE_MUSIC
+music_data_no_adr:
+.incbin "data/music/arcchoon.mod"
+.endif
 
 ; ============================================================================
 
+.if _ENABLE_ROCKET
+.include "src/rocket-tracks.asm"
+.endif
+
+; ============================================================================
+
+.p2align 6
 .include "lib/lib_data.asm"
 
 ; ============================================================================

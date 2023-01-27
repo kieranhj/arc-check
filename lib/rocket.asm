@@ -2,12 +2,8 @@
 ; Rocket sync
 ; ============================================================================
 
-.equ Pattern_Max, 16                ; TODO: automate from MOD file.
-.equ Tracks_Max, 9                  ; TODO: automate from tracks_list file.
 .equ Podule_Number, 1               ; A3020 only has podule 1.
                                     ; A440 likely in podule 3.
-.equ Patterns_All64Rows, 1          ; Helpful.
-.equ VsyncsPerRow, 6                ;
 
 .equ Sequence_MaxVsyncs, Pattern_Max*64*VsyncsPerRow
 
@@ -210,35 +206,6 @@ rocket_sync_time_to_music_pos:
     .set \start, \start + \len
 .endm
 
-; TODO: automate from MOD file.
-; BBPD MOD has short (32 line) patterns at 8, 15, 20, 21.
-.if !Patterns_All64Rows
-rocket_music_pattern_lengths:
-    .set ps, 0
-    pat_len ps, 64   ; 0
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 32   ; 8
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 32   ; 15
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 64
-    pat_len ps, 32   ; 20
-    pat_len ps, 32   ; 21
-    pat_len ps, 64   ; 22
-.endif
 
 .else
 
@@ -251,7 +218,6 @@ rocket_init:
     adr r4, tracks_context
     .1:
     ldr r2, [r1, r0, lsl #2]        ; track_data_offset = tracks_table[i]
-    add r2, r2, r1                  ; track_ptr = track_data_offset + tracks_table
     ldr r3, [r2], #4                ; num_keys = *track_ptr++
     ldr r5, [r2], #4                ; track_type = *track_ptr++
     ; TODO: Handle track types other than TRACK_FLOAT.
@@ -373,45 +339,18 @@ tracks_context:
 
 ; TODO: automate this from track_list file.
 tracks_table:
-    .long track_rubber_pos_x - tracks_table
-    .long track_rubber_pos_y - tracks_table
-    .long track_rubber_pos_z - tracks_table
-    .long track_rubber_rot_x - tracks_table
-    .long track_rubber_rot_y - tracks_table
-    .long track_rubber_rot_z - tracks_table
-    .long track_rubber_line_delay - tracks_table
-    .long track_rubber_line_split - tracks_table
-    .long track_rubber_y_pos - tracks_table
-
-track_rubber_pos_x:
-    .incbin "data/rocket/rubber_pos_x.track"
-
-track_rubber_pos_y:
-    .incbin "data/rocket/rubber_pos_y.track"
-
-track_rubber_pos_z:
-    .incbin "data/rocket/rubber_pos_z.track"
-
-track_rubber_rot_x:
-    .incbin "data/rocket/rubber_rot_x.track"
-
-track_rubber_rot_y:
-    .incbin "data/rocket/rubber_rot_y.track"
-
-track_rubber_rot_z:
-    .incbin "data/rocket/rubber_rot_z.track"
-
-track_rubber_line_delay:
-    .incbin "data/rocket/rubber_line_delay.track"
-
-track_rubber_line_split:
-    .incbin "data/rocket/rubber_line_split.track"
-
-track_rubber_y_pos:
-    .incbin "data/rocket/rubber_y_pos.track"
+    .long track_0_data_no_adr
+    .long track_1_data_no_adr
+    .long track_2_data_no_adr
+    .long track_3_data_no_adr
+    .long track_4_data_no_adr
+    .long track_5_data_no_adr
+    .long track_6_data_no_adr
+    .long track_7_data_no_adr
+    .long track_8_data_no_adr
 
 .if _USE_RECIPROCAL_TABLE!=1
-; TODO: Use shared divide function.
+; TODO: Option to use divide function.
 divisor_table:
     .long 0
     .set div, 1

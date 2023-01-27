@@ -253,12 +253,13 @@ STEPS
 ~~~
 1. Code to generate depth pattern at 320x256. - DONE
 2. Extend this to 8 pixel shifts. - DONE
-3. Extend this to 640x512 or 1024x512.
-4. Simple code to generate 2^N layer combos. Start with N=3 layers.
-5. Code to write the selected layer pattern to screen buffer for N layers.
-6. Optimise layer code by removing duplicated source reads.
+3. Extend this to 640x512 or 1024x512. - DONE
+4. Simple code to generate 2^N layer combos. Start with N=3 layers. - DONE
+5. Code to write the selected layer pattern to screen buffer for N layers. - DONE
+5a. Add Rocket to tweak x/y/z layer params in real time for testing.
+6. Optimise layer code by removing duplicated source reads. - DONE
 7. Performance timings at N=4/5/6?
-8. Add music player.
+8. Add music player. - DONE
 9. Implement double buffering of generated layers.
 10. Add RasterMan to select screen buffer address on a per scanline basis.
 11. Optimise RasterMan to minimal IRQ overhead as necessary.
