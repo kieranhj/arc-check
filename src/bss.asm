@@ -33,39 +33,43 @@ memc_table_no_adr:
 
 .p2align 6
 check_rows_pixel_0_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_1_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_2_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_3_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_4_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_5_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_6_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
 check_rows_pixel_7_no_adr:
-	.skip Rows_Width * Rows_Height / 2
+	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
-check_line_combos:
+check_line_combos_no_adr:
 	.skip Screen_Stride * Check_Combos
+
+.p2align 6
+check_depths_dx_no_adr:
+	.skip Check_Num_Depths * 4
 
 ; ============================================================================
 

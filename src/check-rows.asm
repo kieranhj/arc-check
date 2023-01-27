@@ -1,17 +1,22 @@
 ; ============================================================================
 ; Checkerboard rows.
+; Each line represents a distance from the camera.
+; 8 copies of all rows for pixel shift from [0-7]
 ; ============================================================================
 
-.equ Rows_Width, 512
-.equ Rows_Height, 512
-.equ Check_Width, 320
-.equ Row_dx, 3276           ; 0.05<<16
+.equ Rows_Width_Pixels, 512
+.equ Rows_Width_Bytes, Rows_Width_Pixels/2
 
-.equ Check_Layers, 6
+.equ Check_Num_Depths, 512
+.equ Check_Size_Pixels, 320
+.equ Check_Depth_dx, 3276           ; 0.05<<16
+
+.equ Check_Layers, 5
 .equ Check_Combos, (1 << Check_Layers)
 
-; Each line represents a distance from the camera.
+; ========================================================================
 
+; Pointers to the buffers for check rows at each pixel shift.
 check_rows_table:
     .long check_rows_pixel_0_no_adr
     .long check_rows_pixel_1_no_adr
@@ -22,22 +27,35 @@ check_rows_table:
     .long check_rows_pixel_6_no_adr
     .long check_rows_pixel_7_no_adr
 
+check_depths_dx_p:
+    .long check_depths_dx_no_adr
+
+check_line_combo_p:
+    .long check_line_combos_no_adr
+
+; ========================================================================
+
+; Plot a row's worth of pixels for the depth given by dx, with
+; pixel shift [0-7]. Centres the checks in the centre of the row.
+; Plot 'Rows_Width_Pixels' pixels , i.e. 'Rows_Width_Bytes' bytes
+; written into the buffer pointed to be R11.
+; 
 ; R1=dx [16.16]
 ; R4=pixel shift.
 ; R11=buffer addr.
 ; Trashes: r0,r2,r3,r5,r9,r10
 plot_check_row:
     ; Centre of row is centre of check.
-    mov r0, #Check_Width<<15        ; [16.16]
-    mov r3, #0x0                    ; pixel
-    mov r5, #Check_Width<<16        ; [16.16]
+    mov r0, #Check_Size_Pixels<<15        ; [16.16]
+    mov r3, #0x0                           ; pixel
+    mov r5, #Check_Size_Pixels<<16        ; [16.16]
 
     ; Step back half a row to find x at start.
-    mov r9, #Rows_Width/2
+    mov r9, #Rows_Width_Pixels/2
     sub r9, r9, r4
 .3:
     add r0, r0, r1
-    cmp r0, r5              ; X>check width?
+    cmp r0, r5              ; X>check size?
     subge r0, r0, r5        ; x-=cw
     eorge r3, r3, #0xf      ; pixel^=1
     subs r9, r9, #1
@@ -45,7 +63,7 @@ plot_check_row:
     rsb r0, r0, r5          ; because we've been adding not subtracting dx
 
     ; Loop words.
-    mov r10, #Rows_Width/8  ; word count
+    mov r10, #Rows_Width_Pixels/8  ; word count
 .1:
     ; Loop pixels.
     mov r9, #8              ; pixel count
@@ -55,7 +73,7 @@ plot_check_row:
     orr r2, r2, r3, lsl #28          ; insert pixel
 
     add r0, r0, r1          ; x+=dx
-    cmp r0, r5              ; X>check width?
+    cmp r0, r5              ; X>check size?
     subge r0, r0, r5        ; x-=cw
     eorge r3, r3, #0xf      ; pixel^=1
 
@@ -69,23 +87,32 @@ plot_check_row:
 
     mov pc, lr
 
+; Plot 'Check_Num_Depths' check rows to the buffer pointed to
+; by R11. Starting at dx=1.0 (i.e. check will be 'Check_Size_Pixels'
+; wide) and step by Check_Depth_dx for each additional depth.
+;
 ; R4 = pixel shift.
 ; R11 = buffer address.
 make_check_rows:
     str lr, [sp, #-4]!
     mov r1, #1<<16          ; start at dx=1.0
 
+    ldr r6, check_depths_dx_p
+
     ; Loop rows.
-    mov r8, #Rows_Height
+    mov r8, #Check_Num_Depths
 .1:
+    str r1, [r6], #4        
+
     bl plot_check_row
-    add r1, r1, #Row_dx       ; dx+=0.05
+    add r1, r1, #Check_Depth_dx     ; dx+=0.05
 
     subs r8, r8, #1
     bne .1
 
     ldr pc, [sp], #4
 
+; Make all check rows for all depths at all pixel shifts [0-7].
 check_rows_init:
     str lr, [sp, #-4]!
 
@@ -100,14 +127,15 @@ check_rows_init:
 
     ldr pc, [sp], #4
 
-
+; Plot a screen widths worth of checks to the destination buffer.
+; 
 ; R8=parity 0x00000000 or 0xffffffff
-; R9=check row src.
+; R9=check row source.
 ; R10=colour word.
 ; R12=dest line buffer.
 ; Trashes: r0-r7
 plot_check_line:
-.rept 10
+.rept Screen_Stride / 16
     ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
     ; 8c
     eor r0, r0, r8
@@ -140,6 +168,7 @@ plot_check_line:
     ; 400c per line.
     mov pc, lr
 
+; Plot blank line of screen width.
 ; R12=dest line buffer.
 ; Trashes r0-r3
 plot_blank_line:
@@ -147,46 +176,19 @@ plot_blank_line:
     mov r1, r0
     mov r2, r0
     mov r3, r0
-.rept 10
+.rept Screen_Stride / 16
     stmia r12!, {r0-r3}
 .endr
     mov pc, lr
 
-check_line_combo_p:
-    .long check_line_combos
-
-check_layer_x_pos:
-    .long 96 << 16
-    .long 96 << 16
-    .long 96 << 16
-    .long 96 << 16
-    .long 96 << 16
-    .long 96 << 16
-
-check_layer_y_pos:
-    .long 0 << 16
-    .long 1 << 16
-    .long 2 << 16
-    .long 3 << 16
-    .long 4 << 16
-    .long 5 << 16
-    .long 6 << 16
-    .long 7 << 16
-
-check_layer_z_pos:
-    .long 160 << 16
-    .long 128 << 16
-    .long 96 << 16
-    .long 64 << 16
-    .long 32 << 16
-    .long 8 << 16
-
-; R12 = screen addr (for now)
+; Plot the 2^N possible combinations of layers visible based on
+; the depth and X position of each layer, starting from the furthest
+; away.
+;
+; Requires plotting (and masking) the checks from each layer 2^N times.
 plot_check_line_combos:
     str lr, [sp, #-4]!
-    ; ldr r12, check_line_combo_p
-    ; TEMP: Plot to screen for debug.
-    str r12, check_line_combo_p
+    ldr r12, check_line_combo_p
 
     ; Blank all line combos.
     mov r11, #Check_Combos
@@ -203,7 +205,7 @@ plot_check_line_combos:
 
     ; R9=check row src.
     ; Compute from x and z for layer.
-    adr r4, check_layer_x_pos-4
+    adr r4, check_layer_x_pos-4         ; layer-1
     ldr r0, [r4, r10, lsl #2]           ; [16.16]
     mov r0, r0, lsr #16                 ; [16.0]
 
@@ -214,12 +216,16 @@ plot_check_line_combos:
     ldr r9, [r9, r2, lsl #2]            ; select check rows for shift 
     add r9, r9, r0, lsr #1              ; X word
 
-    adr r5, check_layer_z_pos-4
+    adr r5, check_layer_z_pos-4         ; layer-1
     ldr r1, [r5, r10, lsl #2]           ; [16.16]
     mov r1, r1, lsr #16
 
     ; Add Rows_Width * z_pos
-    add r9, r9, r1, lsl #9              ; z * 512
+    .if Rows_Width_Bytes == 256
+    add r9, r9, r1, lsl #8              ; z * 256
+    .else
+    .error "Expected Rows_Width_Bytes to be 256."
+    .endif
 
     ; Convert layer number into colour word.
     ; R10=colour word.
@@ -264,3 +270,143 @@ plot_check_line_combos:
     ; 51200c * 6 = 307200c <= but this seems to be less than a frame on real hw?
 
     ldr pc, [sp], #4
+
+; Copy a line to screen (Screen_Stride bytes).
+; R9=source ptr.
+; R12=screen addr.
+; Trashes: r0-r3
+copy_combo_row:
+.rept Screen_Stride / 16
+    ldmia r9!, {r0-r3}
+    stmia r12!, {r0-r3}
+.endr
+    mov pc, lr
+
+; Plot all checks to the screen based on the Y position for each
+; layer. For each scanline we maintain the y value within each layer
+; and therefore the 'parity' of the check. Given the parity of all
+; layers we select which of the 2^N check combo lines to copy to the
+; screen.
+; 
+; R12=screen addr
+plot_checks_to_screen:
+    str lr, [sp, #-4]!
+
+    adr r8, check_layer_y_pos
+    adr r6, check_layer_running_y
+    adr r4, check_layer_dx
+    adr r3, check_layer_z_pos
+    ldr r2, check_depths_dx_p
+
+    mov r7, #0                  ; parity word.
+    mov r5, #1                  ; bit!
+
+    ; Work out y pos and parity for top line of screen.
+
+    mov r10, #0                 ; layer
+.1:
+    ldr r1, [r8, r10, lsl #2]   ; y pos
+.2:
+    cmp r1, #Check_Size_Pixels<<16
+    subge r1, r1, #Check_Size_Pixels<<16
+    eorge r7, r7, r5, lsl r10
+    bge .2
+
+    str r1, [r6, r10, lsl #2]   ; running y
+
+    ldr r1, [r3, r10, lsl #2]   ; z pos for layer
+    mov r1, r1, lsr #16
+    ldr r1, [r2, r1, lsl #2]    ; dx for z pos for layer
+    str r1, [r4, r10, lsl #2]   ; store dx for layer
+
+    add r10, r10, #1
+    cmp r10, #Check_Layers
+    bne .1
+
+    mov r11, #0             ; scanline.
+.3:
+    ; Work out which combo line to plot based on parity of y pos.
+    ldr r9, check_line_combo_p
+    .if Screen_Stride == 160
+    add r9, r9, r7, lsl #7  ; + parity word * 128
+    add r9, r9, r7, lsl #5  ; + parity word * 32
+    .else
+    .error "Expected Screen_Stride to be 160."
+    .endif
+
+    ; 'Blit' to screen
+    bl copy_combo_row
+
+    ; Update all the running y positions per scanline...
+    mov r10, #0                 ; layer
+.4:
+    ldr r1, [r6, r10, lsl #2]   ; running y pos
+    ldr r2, [r4, r10, lsl #2]   ; dx for layer
+    add r1, r1, r2              ; y_pos += dx
+
+    ; Track parity for this layer.
+    cmp r1, #Check_Size_Pixels<<16
+    subge r1, r1, #Check_Size_Pixels<<16
+    eorge r7, r7, r5, lsl r10
+
+    str r1, [r6, r10, lsl #2]   ; running y
+
+    ; Next layer.
+    add r10, r10, #1
+    cmp r10, #Check_Layers
+    bne .4
+
+    ; Next scanline.
+    add r11, r11, #1
+    cmp r11, #Screen_Height
+    blt .3
+
+    ldr pc, [sp], #4
+
+check_layer_running_y:
+    .skip Check_Layers * 4
+
+check_layer_dx:
+    .skip Check_Layers * 4
+
+; ========================================================================
+; X, Y, Z positions for each layer.
+; ========================================================================
+
+check_layer_x_pos:
+    .long 96 << 16
+    .long 96 << 16
+    .long 96 << 16
+    .long 96 << 16
+    .long 96 << 16
+    .long 96 << 16
+    .long 96 << 16
+    .long 96 << 16
+
+    .long 97 << 16
+    .long 98 << 16
+    .long 99 << 16
+    .long 100 << 16
+    .long 101 << 16
+    .long 102 << 16
+    .long 103 << 16
+
+check_layer_y_pos:
+    .long 1 << 16
+    .long 2 << 16
+    .long 3 << 16
+    .long 4 << 16
+    .long 5 << 16
+    .long 6 << 16
+    .long 7 << 16
+
+check_layer_z_pos:
+    .long 256 << 16
+    .long 128 << 16
+    .long 96 << 16
+    .long 64 << 16
+    .long 8 << 16
+    .long 4 << 16
+    .long 2 << 16
+
+; ========================================================================

@@ -181,6 +181,10 @@ main_loop:
 	bl rocket_update
 	.endif
 
+	SET_BORDER 0x0000ff	; red
+
+	bl plot_check_line_combos
+
 	; ========================================================================
 	; VSYNC
 	; ========================================================================
@@ -231,13 +235,13 @@ main_loop:
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
 
-	SET_BORDER 0x00ff00	; green
+	SET_BORDER 0xff0000	; blue
 ;	mov r0, #0xffffffff
 ;	ldr r11, screen_addr
 ;	bl screen_cls
 
 	ldr r12, screen_addr
-	bl plot_check_line_combos
+	bl plot_checks_to_screen
 
 	SET_BORDER 0xffff00	; cyan
 
