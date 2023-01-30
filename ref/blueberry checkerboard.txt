@@ -268,8 +268,13 @@ STEPS
     - Implement double buffering of generated layers.
     - Add RasterMan to select screen buffer address on a per scanline basis.
     - Optimise RasterMan to minimal IRQ overhead as necessary.
-10. Bitplane path ---v
-    - Add option to 
+10. Bitplane path ---v - DONE
+    - Change to generate 2x sets of combos for layers.
+    - Do scanline parity walk into a table.
+    - Merge two 'playfields' of combos per scanline.
+11. Try setting check size to 512 - does this make everything simpler?
+11a. Need a scheme to enable setting Y value as line offset not V [i.e. 0-320 in check] per layer.
+    - Also (0,0) to be centre of the screen would be easier...
 12. Some sort of sequencing (Rocket?!?!) including swapping between checks and text.
     (Consider some sort of trick starting with 3/4/5x layers but writing over the top of it,
     before switching to more layers that can only be done with RM.)
@@ -309,3 +314,7 @@ stmia r12!, {r4-r7}     ; write 4 words to screen
 => 2.5x the cost of just doing a straight ldmia/stmia...
 
 - Doing 3 layers is so cheap that it might be better to combine 3x 3 layers!!!
+- Cost becomes 256 + 2 * 2^(N/2) masked lines, rather than N * 2^N.
+N=4 DPF=256+2*4=262 vs 4*16=64
+N=6 DPF=256+2*8=272 vs 6*64=384
+N=8 DPF=256+2*16=288 vs 8*256=2048

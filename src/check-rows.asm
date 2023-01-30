@@ -14,7 +14,7 @@
 .equ _DUAL_PF, 1
 
 .if _DUAL_PF
-.equ Check_Layers, 3                ; x2!
+.equ Check_Layers, 3
 .equ Check_PF_Layers, Check_Layers * 2
 .else
 .equ Check_Layers, 5
@@ -300,7 +300,7 @@ plot_check_combos:
 
     adr r4, check_layer_x_pos + Check_Layers*4
     adr r5, check_layer_z_pos + Check_Layers*4
-    mov r10, #0x0c
+    mov r10, #0x02
     bl plot_check_combo_layers
 
     ldr pc, [sp], #4
@@ -368,7 +368,8 @@ plot_check_combo_layers:
     add r10, r8, #1                     ; colour = layer+1
     ; Insert PF mask.
     ldr r0, check_combos_pf_mask
-    orr r10, r10, r0
+;    orr r10, r10, r0
+    mov r10, r10, lsl r0
     ; Convert into colour word.
     orr r10, r10, r10, lsl #4
     orr r10, r10, r10, lsl #8
@@ -416,24 +417,25 @@ merge_combo_rows:
     ; 8c
     ldmia r8!, {r4-r7}      ; load 4 words of bottom layers
     ; 8c
-    bic r11, r0, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
-    orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-    bic r4, r4, r11         ; mask out pixels from bottom layer.
+;    bic r11, r0, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
+    ; Add extra orr lsr #1 here if Check_Layers == 4.
+ ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
+  ;  bic r4, r4, r11         ; mask out pixels from bottom layer.
     orr r4, r4, r0          ; mask in pixels from top layer
     ; 4c
-    bic r11, r1, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
-    orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-    bic r5, r5, r11         ; mask out pixels from bottom layer.
+;    bic r11, r1, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
+ ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
+  ;  bic r5, r5, r11         ; mask out pixels from bottom layer.
     orr r5, r5, r1          ; mask in pixels from top layer
     ; 4c
-    bic r11, r2, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
-    orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-    bic r6, r6, r11         ; mask out pixels from bottom layer.
+;    bic r11, r2, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
+ ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
+  ;  bic r6, r6, r11         ; mask out pixels from bottom layer.
     orr r6, r6, r2          ; mask in pixels from top layer
     ; 4c
-    bic r11, r3, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
-    orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-    bic r7, r7, r11         ; mask out pixels from bottom layer.
+;    bic r11, r3, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
+ ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
+  ;  bic r7, r7, r11         ; mask out pixels from bottom layer.
     orr r7, r7, r3          ; mask in pixels from top layer
     ; 4c
     stmia r12!, {r4-r7}
@@ -541,21 +543,21 @@ plot_checks_to_screen:
 
     ; Now blit everything to the screen.
     ldr r10, check_scanline_bitmask_p
-    mov r11, #0                 ; scanline.
+    mov r11, #Screen_Height                 ; scanline.
 .5:
-    ldr r7, [r10, r11, lsl #2]  ; parity bitmask
-    mov r7, r7, lsr #Check_Layers
+    ldr r7, [r10], #4  ; parity bitmask
+    mov r0, r7, lsr #Check_Layers
 
     ldr r9, check_line_combo_PF_p
+    sub r8, r9, #Screen_Stride * Check_Combos
     .if Screen_Stride == 160
-    add r9, r9, r7, lsl #7  ; + parity word * 128
-    add r9, r9, r7, lsl #5  ; + parity word * 32
+    add r9, r9, r0, lsl #7  ; + parity word * 128
+    add r9, r9, r0, lsl #5  ; + parity word * 32
     .else
     .error "Expected Screen_Stride to be 160."
     .endif
 
-    ldr r7, [r10, r11, lsl #2]  ; parity bitmask
-    ldr r8, check_line_combo_p
+;    ldr r8, check_line_combo_p  ; could be add/sub
     and r7, r7, #Check_Combos-1
 
     .if Screen_Stride == 160
@@ -566,17 +568,16 @@ plot_checks_to_screen:
     .endif
 
     ; 'Blit' to screen from r9 to r12.
-    stmfd sp!, {r10, r11}
-    ldr r10, scanline_combo_pf_mask
+;    stmfd sp!, {r10, r11}
+ ;   ldr r10, scanline_combo_pf_mask
     bl merge_combo_rows
     ; 400c
-    ldmfd sp!, {r10, r11}
+  ;  ldmfd sp!, {r10, r11}
     ; Trashes r0-r7
 
     ; Next scanline.
-    add r11, r11, #1
-    cmp r11, #Screen_Height
-    blt .5
+    subs r11, r11, #1
+    bne .5
     ; 400c * 256 = 102400c
 
     ldr pc, [sp], #4
@@ -591,7 +592,12 @@ check_scanline_bitmask_p:
     .long check_scanline_bitmask_no_adr
 
 scanline_combo_pf_mask:
+.if Check_Layers == 3
     .long 0x33333333
+.else
+    .error "Expected Check_Layers to be 3."
+    .long 0x77777777    ; if Check_layers == 4.
+.endif
 
 .else
 plot_checks_to_screen:
@@ -720,14 +726,6 @@ check_layer_x_pos:
     .long 96 << 16
     .long 96 << 16
 
-    .long 97 << 16
-    .long 98 << 16
-    .long 99 << 16
-    .long 100 << 16
-    .long 101 << 16
-    .long 102 << 16
-    .long 103 << 16
-
 check_layer_y_pos:
     .long 160 << 16
     .long 20 << 16
@@ -736,14 +734,16 @@ check_layer_y_pos:
     .long 50 << 16
     .long 60 << 16
     .long 70 << 16
+    .long 80 << 16
 
 check_layer_z_pos:
     .long 256 << 16
     .long 128 << 16
     .long 96 << 16
     .long 64 << 16
+    .long 32 << 16
+    .long 16 << 16
     .long 8 << 16
     .long 4 << 16
-    .long 2 << 16
 
 ; ========================================================================

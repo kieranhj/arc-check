@@ -5,7 +5,7 @@
 .equ _DEBUG, 1
 .equ _ENABLE_RASTERMAN, 0
 .equ _ENABLE_MUSIC, 1
-.equ _ENABLE_ROCKET, 1
+.equ _ENABLE_ROCKET, 0
 .equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
@@ -599,22 +599,22 @@ grey_palette:
 	.long 0x00EEEEEE
 	.long 0x00FFFFFF
 .else
-	.long 0x00000000
-	.long 0x000000ff
-	.long 0x0000ff00
-	.long 0x0000ffff
-	.long 0x00ff0000
-	.long 0x00ff00ff
-	.long 0x00ffff00
-	.long 0x00ffffff
-	.long 0x00888888
-	.long 0x00000088
-	.long 0x00008800
-	.long 0x00008888
-	.long 0x00880000
-	.long 0x00880088
-	.long 0x00888800
-	.long 0x00888888
+	.long 0x00000000	; 00 00
+	.long 0x000000ff	; 00 01
+	.long 0x0000ff00	; 00 10
+	.long 0x0000ffff	; 00 11
+	.long 0x00ff0000	; 01 00
+	.long 0x00ff0000	; 01 01
+	.long 0x00ff0000	; 01 10
+	.long 0x00ff0000	; 01 11
+	.long 0x00ff00ff	; 10 00
+	.long 0x00ff00ff	; 10 01
+	.long 0x00ff00ff	; 10 10
+	.long 0x00ff00ff	; 10 11
+	.long 0x00ffff00	; 11 00
+	.long 0x00ffff00	; 11 01
+	.long 0x00ffff00	; 11 10
+	.long 0x00ffff00	; 11 11
 .endif
 
 palette_osword_block:

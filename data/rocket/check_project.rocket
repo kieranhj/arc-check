@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rootElement>
+<tracks rows="10000" startRow="0" endRow="10000" rowsPerBeat="8"
+beatsPerMin="125">
+	<track name="layer_0_x" folded="0" muteKeyCount="0"
+color="ffb27474" type="0">
+		<key row="0" val="0.000000" interpolation="1" />
+		<key row="56" val="96.000000" interpolation="0" />
+	</track>
+	<track name="layer_0_y" folded="0" muteKeyCount="0"
+color="ffb28050" type="0">
+		<key row="0" val="0.000000" interpolation="1" />
+		<key row="56" val="320.000000" interpolation="0" />
+	</track>
+	<track name="layer_0_z" folded="0" muteKeyCount="0"
+color="ffa9b250" type="0">
+		<key row="0" val="511.000000" interpolation="1" />
+		<key row="56" val="256.000000" interpolation="0" />
+	</track>
+	<track name="layer_0_colour" folded="0" muteKeyCount="0"
+color="ff60b250" type="2">
+		<key row="0" colour="0000" interpolation="0" />
+	</track>
+	<track name="layer_1_x" folded="0" muteKeyCount="0"
+color="ff4fb292" type="0">
+		<key row="0" val="96.000000" interpolation="1" />
+		<key row="56" val="192.000000" interpolation="1" />
+		<key row="96" val="0.000000" interpolation="0" />
+	</track>
+	<track name="layer_1_y" folded="0" muteKeyCount="0"
+color="ff4f71b2" type="0">
+		<key row="0" val="0.000000" interpolation="0" />
+	</track>
+	<track name="layer_1_z" folded="0" muteKeyCount="0"
+color="ff8850b2" type="0">
+		<key row="0" val="128.000000" interpolation="0" />
+	</track>
+	<track name="layer_1_colour" folded="0" muteKeyCount="0"
+color="ffb25091" type="2">
+		<key row="0" colour="0000" interpolation="0" />
+	</track>
+	<track name="layer_2_x" folded="0" muteKeyCount="0"
+color="ffb27474" type="0">
+		<key row="0" val="96.000000" interpolation="0" />
+	</track>
+	<track name="layer_2_y" folded="0" muteKeyCount="0"
+color="ffb28050" type="0">
+		<key row="0" val="0.000000" interpolation="0" />
+	</track>
+	<track name="layer_2_z" folded="0" muteKeyCount="0"
+color="ffa9b250" type="0">
+		<key row="0" val="96.000000" interpolation="0" />
+	</track>
+	<track name="layer_2_colour" folded="0" muteKeyCount="0"
+color="ff60b250" type="2">
+		<key row="0" colour="0000" interpolation="0" />
+	</track>
+	<track name="layer_3_x" folded="0" muteKeyCount="0"
+color="ff4fb292" type="0">
+		<key row="0" val="0.000000" interpolation="1" />
+		<key row="40" val="192.000000" interpolation="0" />
+	</track>
+	<track name="layer_3_y" folded="0" muteKeyCount="0"
+color="ff4f71b2" type="0">
+		<key row="0" val="0.000000" interpolation="0" />
+	</track>
+	<track name="layer_3_z" folded="0" muteKeyCount="0"
+color="ff8850b2" type="0">
+		<key row="0" val="80.000000" interpolation="0" />
+	</track>
+	<track name="layer_3_colour" folded="0" muteKeyCount="0"
+color="ffb25091" type="2">
+		<key row="0" colour="0000" interpolation="0" />
+	</track>
+	<track name="layer_4_x" folded="0" muteKeyCount="0"
+color="ffb27474" type="0">
+		<key row="0" val="96.000000" interpolation="0" />
+	</track>
+	<track name="layer_4_y" folded="0" muteKeyCount="0"
+color="ffb28050" type="0">
+		<key row="0" val="8.000000" interpolation="1" />
+		<key row="40" val="320.000000" interpolation="0" />
+	</track>
+	<track name="layer_4_z" folded="0" muteKeyCount="0"
+color="ffa9b250" type="0">
+		<key row="0" val="64.000000" interpolation="0" />
+	</track>
+	<track name="layer_4_colour" folded="0" muteKeyCount="0"
+color="ff60b250" type="2">
+		<key row="0" colour="0000" interpolation="0" />
+	</track>
+	<track name="layer_5_x" folded="0" muteKeyCount="0"
+color="ff4fb292" type="0">
+		<key row="0" val="96.000000" interpolation="0" />
+	</track>
+	<track name="layer_5_y" folded="0" muteKeyCount="0"
+color="ff4f71b2" type="0">
+		<key row="0" val="0.000000" interpolation="0" />
+	</track>
+	<track name="layer_5_z" folded="0" muteKeyCount="0"
+color="ff8850b2" type="0">
+		<key row="0" val="16.000000" interpolation="0" />
+	</track>
+	<track name="layer_5_colour" folded="0" muteKeyCount="0"
+color="ffb25091" type="2">
+		<key row="0" colour="0000" interpolation="0" />
+	</track>
+</tracks>
+	</rootElement>
