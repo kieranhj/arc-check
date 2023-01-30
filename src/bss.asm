@@ -67,6 +67,16 @@ check_rows_pixel_7_no_adr:
 check_line_combos_no_adr:
 	.skip Screen_Stride * Check_Combos
 
+.if _DUAL_PF
+.p2align 6
+check_line_combos_PF_no_adr:
+	.skip Screen_Stride * Check_Combos
+
+.p2align 6
+check_scanline_bitmask_no_adr:
+	.skip Screen_Height * 4
+.endif
+
 .p2align 6
 check_depths_dx_no_adr:
 	.skip Check_Num_Depths * 4

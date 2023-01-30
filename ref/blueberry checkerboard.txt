@@ -208,9 +208,10 @@ Can do a regular blit for the screen
 ldm/stm *10 = 16c*10 = 160c per line.
 Times 256 scanlines = 40960c
 
-For 4 layers = 23040c + 40960c = 64000 ~40%
-For 5 layers = 57600c + 40960c = 98560c ~62%
-For 6 layers = 138240c + 40960c = 179,200c ~112%
+For 3 layers = 8640c                                
+For 4 layers = 23040c + 40960c = 64000 ~40%         (x2.67)
+For 5 layers = 57600c + 40960c = 98560c ~62%        (x2.5)
+For 6 layers = 138240c + 40960c = 179,200c ~112%    (x2.4)  (x16 more than 3 layers)
 (Doesn't include generating the scanline table.)
 (And don't forget the VIDC DMA cost.)
 
@@ -248,6 +249,7 @@ Although saving the source reads as costs ~0.8151*322560 ~= 262918c (but this is
 RAM required at 1024x512 = 256k per shift x 8 = 2Mb!! Blurgh.
 Or could perhaps reduce this to 640x512 (double screen res) for a total of 1280k.
 Can at least precalculate all of this...
+=> Probably have a 'low RAM' version for 2Mb machines. (1Mb not supported!)
 
 STEPS
 ~~~
@@ -256,14 +258,54 @@ STEPS
 3. Extend this to 640x512 or 1024x512. - DONE
 4. Simple code to generate 2^N layer combos. Start with N=3 layers. - DONE
 5. Code to write the selected layer pattern to screen buffer for N layers. - DONE
-5a. Add Rocket to tweak x/y/z layer params in real time for testing.
-6. Optimise layer code by removing duplicated source reads. - DONE
+5a. Add Rocket to tweak x/y/z layer params in real time for testing. - DONE
+6. Optimise layer code by removing duplicated source reads.
+    - Write multiple combo lines at once.
+    - Should save 18% according to calculations...
 7. Performance timings at N=4/5/6?
 8. Add music player. - DONE
-9. Implement double buffering of generated layers.
-10. Add RasterMan to select screen buffer address on a per scanline basis.
-11. Optimise RasterMan to minimal IRQ overhead as necessary.
+9. RasterMan path ---v
+    - Implement double buffering of generated layers.
+    - Add RasterMan to select screen buffer address on a per scanline basis.
+    - Optimise RasterMan to minimal IRQ overhead as necessary.
+10. Bitplane path ---v
+    - Add option to 
 12. Some sort of sequencing (Rocket?!?!) including swapping between checks and text.
     (Consider some sort of trick starting with 3/4/5x layers but writing over the top of it,
     before switching to more layers that can only be done with RM.)
 13. Win!
+
+Another performance test to try:
+- Use existing approach to generate 2x 3 or 4 layers then combine these together.
+- The cost to combine two lines on the screen is fixed per line.
+    - Read/mask/write for top layer.
+    - How to calculate mask from colour bits?
+    => If top combo layers all have bit 3 set, i.e. colours 1xxx
+       Or even have bits 2&3 set, i.e. use colours 11xx
+       Then mask can be computed from colour word by:
+
+ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b1aaa1bbb1ccc1ddd...)
+; 8c
+ldmia r8!, {r4-r7}      ; load 4 words of bottom layers
+; 8c
+bic r11, r0, r10        ; where r10 is fixed as 0b011101110... i.e. 0x77777777
+                        ; so r11 becomes either 0x00000000 or 0x88888888 etc.
+orr r11, r11, r11, lsr #1   ; r11 = 0x00000000 or 0xcccccccc
+; ^-- can remove this line if colours are 11xx
+orr r11, r11, r11, lsr #2   ; r11 = 0x00000000 or 0xffffffff
+; 3c
+; repeat for r1, r2, r3
+; 9c
+bic r4, r4, r11         ; mask out bottom layers
+orr r4, r4, r0          ; mask in top layers
+; 2c
+; repeat for r1, r2, r3
+; 6c
+stmia r12!, {r4-r7}     ; write 4 words to screen
+; 8c
+; 4 words = 32 pixels = 40c
+; repeat 10 times for full line = 400c
+
+=> 2.5x the cost of just doing a straight ldmia/stmia...
+
+- Doing 3 layers is so cheap that it might be better to combine 3x 3 layers!!!

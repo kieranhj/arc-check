@@ -190,7 +190,7 @@ main_loop:
 
 	SET_BORDER 0x0000ff	; red
 
-	bl plot_check_line_combos
+	bl plot_check_combos
 
 	; ========================================================================
 	; VSYNC
@@ -276,6 +276,9 @@ main_loop:
 	.endif
 	
 	b main_loop
+
+music_data_p:
+	.long music_data_no_adr
 
 error_noscreenmem:
 	.long 0
@@ -605,13 +608,13 @@ grey_palette:
 	.long 0x00ffff00
 	.long 0x00ffffff
 	.long 0x00888888
-	.long 0x00999999
-	.long 0x00AAAAAA
-	.long 0x00BBBBBB
-	.long 0x00CCCCCC
-	.long 0x00DDDDDD
-	.long 0x00EEEEEE
-	.long 0x00FFFFFF
+	.long 0x00000088
+	.long 0x00008800
+	.long 0x00008888
+	.long 0x00880000
+	.long 0x00880088
+	.long 0x00888800
+	.long 0x00888888
 .endif
 
 palette_osword_block:
@@ -622,9 +625,6 @@ palette_osword_block:
     ; green
     ; blue
     ; (pad)
-
-music_data_p:
-	.long music_data_no_adr
 
 ; ============================================================================
 ; DATA Segment
