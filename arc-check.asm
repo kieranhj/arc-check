@@ -192,6 +192,10 @@ main_loop:
 
 	bl plot_check_combos
 
+	SET_BORDER 0xff0000	; blue
+
+	bl calculate_scanline_bitmasks
+
 	; ========================================================================
 	; VSYNC
 	; ========================================================================
@@ -242,10 +246,7 @@ main_loop:
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
 
-	SET_BORDER 0xff0000	; blue
-;	mov r0, #0xffffffff
-;	ldr r11, screen_addr
-;	bl screen_cls
+	SET_BORDER 0xff00ff	; magenta
 
 	ldr r12, screen_addr
 	bl plot_checks_to_screen
@@ -253,7 +254,7 @@ main_loop:
 	SET_BORDER 0xffff00	; cyan
 
 	; show debug
-	.if _DEBUG
+	.if _DEBUG && 1
 	bl debug_write_vsync_count
 	.endif
 

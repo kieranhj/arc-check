@@ -433,10 +433,8 @@ copy_combo_row:
 ; Then do the source merge after?
 ;
 .if _DUAL_PF
-plot_checks_to_screen:
+calculate_scanline_bitmasks:
     str lr, [sp, #-4]!
-
-    str r12, plot_check_screen_addr
 
     ; Need 6x registers for dx.
     adr r0, check_layer_z_pos
@@ -542,9 +540,10 @@ plot_checks_to_screen:
     cmp r14, #Screen_Height<<16
     blt .7
 
-    ldr r12, plot_check_screen_addr
+    ldr pc, [sp], #4
 
-	SET_BORDER 0xff00ff	; magenta
+plot_checks_to_screen:
+    str lr, [sp, #-4]!
 
     ; Now blit everything to the screen.
     ldr r14, check_line_combo_PF_p
@@ -590,9 +589,6 @@ plot_checks_to_screen:
     bne .8
 
     ldr pc, [sp], #4
-
-plot_check_screen_addr:
-    .long 0
 
 check_scanline_bitmask_p:
     .long check_scanline_bitmask_no_adr
