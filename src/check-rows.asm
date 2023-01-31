@@ -404,47 +404,6 @@ check_combos_z_table:
     .long 0
 
 .if _DUAL_PF
-; Merge two lines to screen (Screen_Stride bytes).
-; R8=ptr to bottom layer.
-; R9=ptr to top layer.
-; R10=PF_MASK = 0xcccccccc
-; R12=screen addr.
-; Trashes: r0-r7, r11
-.p2align 6
-merge_combo_rows:
-.rept Screen_Stride / 16
-    ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
-    ; 8c
-    ldmia r8!, {r4-r7}      ; load 4 words of bottom layers
-    ; 8c
-;    bic r11, r0, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
-    ; Add extra orr lsr #1 here if Check_Layers == 4.
- ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-  ;  bic r4, r4, r11         ; mask out pixels from bottom layer.
-    orr r4, r4, r0          ; mask in pixels from top layer
-    ; 4c
-;    bic r11, r1, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
- ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-  ;  bic r5, r5, r11         ; mask out pixels from bottom layer.
-    orr r5, r5, r1          ; mask in pixels from top layer
-    ; 4c
-;    bic r11, r2, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
- ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-  ;  bic r6, r6, r11         ; mask out pixels from bottom layer.
-    orr r6, r6, r2          ; mask in pixels from top layer
-    ; 4c
-;    bic r11, r3, r10        ; where r10 is fixed as 0b00110011... i.e. 0x33333333
- ;   orr r11, r11, r11, lsr #2   ; r11 = mask for top layer.
-  ;  bic r7, r7, r11         ; mask out pixels from bottom layer.
-    orr r7, r7, r3          ; mask in pixels from top layer
-    ; 4c
-    stmia r12!, {r4-r7}
-    ; 8c
-.endr
-    ; 40c per iteration.
-    ; 400c per line.
-    mov pc, lr
-    
 .else
 ; Copy a line to screen (Screen_Stride bytes).
 ; R9=source ptr.
@@ -477,79 +436,128 @@ copy_combo_row:
 plot_checks_to_screen:
     str lr, [sp, #-4]!
 
-    adr r8, check_layer_y_pos
-    adr r6, check_layer_running_y
-    adr r4, check_layer_dx
-    adr r3, check_layer_z_pos
-    ldr r2, check_depths_dx_p
+    str r12, plot_check_screen_addr
 
-    mov r7, #0                  ; parity word.
-    mov r5, #1                  ; bit!
+    ; Need 6x registers for dx.
+    adr r0, check_layer_z_pos
+    ldr r1, check_depths_dx_p
 
-    ; Work out y pos and parity for top line of screen.
+    ldmia r0, {r6-r11}            ; r6-r11 = zpos
+    mov r6, r6, lsr #16
+    ldr r6, [r1, r6, lsl #2]      ; r6=dx for layer 0 at zpos
+    mov r7, r7, lsr #16
+    ldr r7, [r1, r7, lsl #2]      ; r7=dx for layer 1 at zpos
+    mov r8, r8, lsr #16
+    ldr r8, [r1, r8, lsl #2]      ; r8=dx for layer 2 at zpos
+    mov r9, r9, lsr #16
+    ldr r9, [r1, r9, lsl #2]      ; r9=dx for layer 3 at zpos
+    mov r10, r10, lsr #16
+    ldr r10, [r1, r10, lsl #2]    ; r10=dx for layer 4 at zpos
+    mov r11, r11, lsr #16
+    ldr r11, [r1, r11, lsl #2]    ; r11=dx for layer 5 at zpos
+    
+    ; Need 6x registers for y pos.
+    adr r14, check_layer_y_pos
+    ldmia r14, {r0-r5}          ; r0-r5 = ypos
 
-    mov r10, #0                 ; layer
+    ; 1x register for scanline counter - combine ?
+    ; 1x register for bitmask           |
+    mov r14, #0                 ; bitmask & scanline counter!!
 .1:
-    ldr r1, [r8, r10, lsl #2]   ; y pos
+    cmp r0, #Check_Size_Pixels<<16
+    subge r0, r0, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 0
+    bge .1
+
 .2:
     cmp r1, #Check_Size_Pixels<<16
     subge r1, r1, #Check_Size_Pixels<<16
-    eorge r7, r7, r5, lsl r10
+    eorge r14, r14, #1 << 1
     bge .2
 
-    str r1, [r6, r10, lsl #2]   ; running y
-
-    ldr r1, [r3, r10, lsl #2]   ; z pos for layer
-    mov r1, r1, lsr #16
-    ldr r1, [r2, r1, lsl #2]    ; dx for z pos for layer
-    str r1, [r4, r10, lsl #2]   ; store dx for layer
-
-    add r10, r10, #1
-    cmp r10, #Check_PF_Layers
-    bne .1
-
-    ldr r3, check_scanline_bitmask_p
-    mov r11, #0                 ; scanline.
 .3:
-    ; We don't blit here but write parity bitmask to table...
-    str r7, [r3, r11, lsl #2]
+    cmp r2, #Check_Size_Pixels<<16
+    subge r2, r2, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 2
+    bge .3
+
+.4:
+    cmp r3, #Check_Size_Pixels<<16
+    subge r3, r3, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 3
+    bge .4
+
+.5:
+    cmp r4, #Check_Size_Pixels<<16
+    subge r4, r4, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 4
+    bge .5
+
+.6:
+    cmp r5, #Check_Size_Pixels<<16
+    subge r5, r5, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 5
+    bge .6
+
+    ; 1x register for address to write bitmask.
+    ldr r12, check_scanline_bitmask_p
+
+    ; Scanline counter is top halfword of r14.
+.7:
+    str r14, [r12], #4           ; store parity bitmask to table.
 
     ; Update all the running y positions per scanline...
-    ; TODO: Remove the loop and hold in registers.
-    mov r10, #0                 ; layer
-.4:
-    ldr r1, [r6, r10, lsl #2]   ; running y pos
-    ldr r2, [r4, r10, lsl #2]   ; dx for layer
-    add r1, r1, r2              ; y_pos += dx
+    add r0, r0, r6              ; y_pos += dx
+    cmp r0, #Check_Size_Pixels<<16
+    subge r0, r0, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 0
 
-    ; Track parity for this layer.
+    add r1, r1, r7              ; y_pos += dx
     cmp r1, #Check_Size_Pixels<<16
     subge r1, r1, #Check_Size_Pixels<<16
-    eorge r7, r7, r5, lsl r10
+    eorge r14, r14, #1 << 1
 
-    str r1, [r6, r10, lsl #2]   ; running y
+    add r2, r2, r8              ; y_pos += dx
+    cmp r2, #Check_Size_Pixels<<16
+    subge r2, r2, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 2
 
-    ; Next layer.
-    add r10, r10, #1
-    cmp r10, #Check_PF_Layers
-    bne .4
+    add r3, r3, r9              ; y_pos += dx
+    cmp r3, #Check_Size_Pixels<<16
+    subge r3, r3, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 3
+
+    add r4, r4, r10             ; y_pos += dx
+    cmp r4, #Check_Size_Pixels<<16
+    subge r4, r4, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 4
+
+    add r5, r5, r11             ; y_pos += dx
+    cmp r5, #Check_Size_Pixels<<16
+    subge r5, r5, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 5
 
     ; Next scanline.
-    add r11, r11, #1
-    cmp r11, #Screen_Height
-    blt .3
+    add r14, r14, #1<<16
+    cmp r14, #Screen_Height<<16
+    blt .7
+
+    ldr r12, plot_check_screen_addr
 
 	SET_BORDER 0xff00ff	; magenta
 
     ; Now blit everything to the screen.
+    ldr r14, check_line_combo_PF_p
     ldr r10, check_scanline_bitmask_p
     mov r11, #Screen_Height                 ; scanline.
-.5:
-    ldr r7, [r10], #4  ; parity bitmask
-    mov r0, r7, lsr #Check_Layers
-
-    ldr r9, check_line_combo_PF_p
+.8:
+    mov r9, r14
     sub r8, r9, #Screen_Stride * Check_Combos
+
+    ldr r7, [r10], #4       ; parity bitmask
+    mov r0, r7, lsr #Check_Layers
+    and r0, r0, #Check_Combos-1
+
     .if Screen_Stride == 160
     add r9, r9, r0, lsl #7  ; + parity word * 128
     add r9, r9, r0, lsl #5  ; + parity word * 32
@@ -557,47 +565,37 @@ plot_checks_to_screen:
     .error "Expected Screen_Stride to be 160."
     .endif
 
-;    ldr r8, check_line_combo_p  ; could be add/sub
     and r7, r7, #Check_Combos-1
-
-    .if Screen_Stride == 160
     add r8, r8, r7, lsl #7  ; + parity word * 128
     add r8, r8, r7, lsl #5  ; + parity word * 32
-    .else
-    .error "Expected Screen_Stride to be 160."
-    .endif
 
     ; 'Blit' to screen from r9 to r12.
-;    stmfd sp!, {r10, r11}
- ;   ldr r10, scanline_combo_pf_mask
-    bl merge_combo_rows
-    ; 400c
-  ;  ldmfd sp!, {r10, r11}
+.rept Screen_Stride / 16
+    ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
+    ; 8c
+    ldmia r8!, {r4-r7}      ; load 4 words of bottom layers
+    ; 8c
+    orr r4, r4, r0          ; mask in pixels from top layer
+    orr r5, r5, r1          ; mask in pixels from top layer
+    orr r6, r6, r2          ; mask in pixels from top layer
+    orr r7, r7, r3          ; mask in pixels from top layer
+    ; 4c
+    stmia r12!, {r4-r7}
+    ; 8c
+.endr
     ; Trashes r0-r7
 
     ; Next scanline.
     subs r11, r11, #1
-    bne .5
-    ; 400c * 256 = 102400c
+    bne .8
 
     ldr pc, [sp], #4
 
-check_layer_running_y:
-    .skip Check_PF_Layers * 4
-
-check_layer_dx:
-    .skip Check_PF_Layers * 4
+plot_check_screen_addr:
+    .long 0
 
 check_scanline_bitmask_p:
     .long check_scanline_bitmask_no_adr
-
-scanline_combo_pf_mask:
-.if Check_Layers == 3
-    .long 0x33333333
-.else
-    .error "Expected Check_Layers to be 3."
-    .long 0x77777777    ; if Check_layers == 4.
-.endif
 
 .else
 plot_checks_to_screen:
@@ -737,6 +735,7 @@ check_layer_y_pos:
     .long 80 << 16
 
 check_layer_z_pos:
+    .long 511 << 16
     .long 256 << 16
     .long 128 << 16
     .long 96 << 16
@@ -744,6 +743,5 @@ check_layer_z_pos:
     .long 32 << 16
     .long 16 << 16
     .long 8 << 16
-    .long 4 << 16
 
 ; ========================================================================
