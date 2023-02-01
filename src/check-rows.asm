@@ -1,7 +1,9 @@
 ; ============================================================================
-; Checkerboard rows.
+; Checkerboard.
 ; Each line represents a distance from the camera.
-; 8 copies of all rows for pixel shift from [0-7]
+; 8 copies of all rows for pixel shift from [0-7].
+; Plot all 2^N combinations of rows given N layers in one 'bitplane'.
+; Combine 2xN layers together by masking 'bitplanes' to screen.
 ; ============================================================================
 
 .equ Rows_Width_Pixels, 512
@@ -11,16 +13,9 @@
 .equ Check_Size_Pixels, 320
 .equ Check_Depth_dx, 3276           ; 0.05<<16
 
-.equ _DUAL_PF, 1
-
-.if _DUAL_PF
-.equ Check_Layers, 3
-.equ Check_PF_Layers, Check_Layers * 2
-.else
-.equ Check_Layers, 5
-.endif
-
-.equ Check_Combos, (1 << Check_Layers)
+.equ Check_Layers_per_bitplane, 3
+.equ Check_Total_Layers, Check_Layers_per_bitplane * 2
+.equ Check_Line_Combos, (1 << Check_Layers_per_bitplane)
 
 
 ; ========================================================================
@@ -39,13 +34,11 @@ check_rows_table:
 check_depths_dx_p:
     .long check_depths_dx_no_adr
 
-check_line_combo_p:
-    .long check_line_combos_no_adr
+check_bitplane_0_line_combos_p:
+    .long check_bitplane_0_line_combos_no_adr
 
-.if _DUAL_PF
-check_line_combo_PF_p:
-    .long check_line_combos_PF_no_adr
-.endif
+check_bitplane_1_line_combos_p:
+    .long check_bitplane_1_line_combos_no_adr
 
 ; ========================================================================
 ; Plot a row's worth of pixels for the depth given by dx, with
@@ -146,123 +139,9 @@ check_rows_init:
 ; Plot a screen widths worth of checks to the destination buffer.
 ; ========================================================================
 
-.if _DUAL_PF==0
-; R9=check row source.
-; R10=colour word.
-; R12=dest line buffer.
-; Trashes: r0-r7
-.p2align 6
-plot_check_line_parity_0:
-.rept Screen_Stride / 16
-    ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
-    ; 8c
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    ; 8c
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r0, r0, r10        ; mask colour with source word
-    orr r4, r4, r0         ; mask in colour word
-    ; 3c
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r1, r1, r10        ; mask colour with source word
-    orr r5, r5, r1         ; mask in colour word
-    ; 3c
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r2, r2, r10        ; mask colour with source word
-    orr r6, r6, r2         ; mask in colour word
-    ; 3c
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r3, r3, r10        ; mask colour with source word
-    orr r7, r7, r3         ; mask in colour word
-    ; 3c
-    stmia r12!, {r4-r7}     ; write 4 words back to screen
-    ; 8c
-.endr
-    ; 40c per iteration.
-    ; 400c per line.
-    mov pc, lr
-
-; As above but invert source pixels.
-; R9=check row source.
-; R10=colour word.
-; R12=dest line buffer.
-; Trashes: r0-r7
-.p2align 6
-plot_check_line_parity_1:
-.rept Screen_Stride / 16
-    ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
-    ; 8c
-    mov r4, #0xffffffff     ; TODO: can we keep this around?
-    eor r0, r0, r4
-    eor r1, r1, r4
-    eor r2, r2, r4
-    eor r3, r3, r4
-    ; 4c
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    ; 8c
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r0, r0, r10        ; mask colour with source word
-    orr r4, r4, r0         ; mask in colour word
-    ; 3c
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r1, r1, r10        ; mask colour with source word
-    orr r5, r5, r1         ; mask in colour word
-    ; 3c
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r2, r2, r10        ; mask colour with source word
-    orr r6, r6, r2         ; mask in colour word
-    ; 3c
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r3, r3, r10        ; mask colour with source word
-    orr r7, r7, r3         ; mask in colour word
-    ; 3c
-    stmia r12!, {r4-r7}     ; write 4 words back to screen
-    ; 8c
-.endr
-    ; 40c per iteration.
-    ; 400c per line.
-    mov pc, lr
-
-; ========================================================================
-; Plot the 2^N possible combinations of layers visible based on
-; the depth and X position of each layer, starting from the furthest
-; away.
-;
-; Requires plotting (and masking) the checks from each layer 2^N times.
-; ========================================================================
-;
-; R8=layer no.
-; R9=check row source.
-; R10=colour word (layer + 1)
-; R12=dest line buffer.
-; Trashes: r0-r8, r11
-plot_check_combo_lines:
-    str lr, [sp, #-4]!
-    ; Combo #
-    mov r11, #0
-.3:
-    mov r2, #1
-    ands r0, r11, r2, lsl r8    ; parity = combo & (1 << layer)
-
-    ; Plot the check row for this layer & parity.
-    bleq plot_check_line_parity_0
-    blne plot_check_line_parity_1
-    ; Trashes: r0-r7
-    ; 400c
-
-    ; Reset R9 (repeat this line for all combos)
-    sub r9, r9, #Screen_Stride
-
-    ; Next line in the combo.
-    add r11, r11, #1
-    cmp r11, #Check_Combos
-    blt .3
-    ldr pc, [sp], #4
-.endif
-
-.if _DUAL_PF
 plot_check_combos:
     str lr, [sp, #-4]!
-    ldr r12, check_line_combo_p
+    ldr r12, check_bitplane_0_line_combos_p
 
     ; Blank all line combos.
     mov r0, #0
@@ -273,7 +152,7 @@ plot_check_combos:
     mov r5, r0
     mov r6, r0
     mov r7, r0
-    mov r11, #Check_Combos * 2
+    mov r11, #Check_Line_Combos * 2
 .1:
 .rept Screen_Stride / 32
     stmia r12!, {r0-r7}
@@ -281,51 +160,19 @@ plot_check_combos:
     subs r11, r11, #1
     bne .1
 
-    ldr r12, check_line_combo_p
+    ldr r12, check_bitplane_0_line_combos_p
     adr r4, check_layer_x_pos
     adr r5, check_layer_z_pos
     mov r10, #0
     bl plot_check_combo_layers
 
-    ldr r12, check_line_combo_PF_p
-    adr r4, check_layer_x_pos + Check_Layers*4
-    adr r5, check_layer_z_pos + Check_Layers*4
+    ldr r12, check_bitplane_1_line_combos_p
+    adr r4, check_layer_x_pos + Check_Layers_per_bitplane*4
+    adr r5, check_layer_z_pos + Check_Layers_per_bitplane*4
     mov r10, #0x02
     bl plot_check_combo_layers
 
     ldr pc, [sp], #4
-.else
-; Plot blank line of screen width.
-; R12=dest line buffer.
-; Trashes r0-r3
-.p2align 6
-plot_blank_line:
-    mov r0, #0
-    mov r1, r0
-    mov r2, r0
-    mov r3, r0
-.rept Screen_Stride / 16
-    stmia r12!, {r0-r3}
-.endr
-    mov pc, lr
-
-plot_check_combos:
-    str lr, [sp, #-4]!
-    ldr r12, check_line_combo_p
-
-    ; Blank all line combos.
-    mov r11, #Check_Combos
-.1:
-    bl plot_blank_line
-    subs r11, r11, #1
-    bne .1
-
-    adr r4, check_layer_x_pos
-    adr r5, check_layer_z_pos
-    mov r10, #0
-    bl plot_check_combo_layers
-    ldr pc, [sp], #4
-.endif
 
 ; R4=ptr to layer x pos table.
 ; R5=ptr to layer z pos table.
@@ -388,7 +235,7 @@ plot_check_combo_layers:
 
     ; Next layer.
     add r11, r11, #1
-    cmp r11, #Check_Layers
+    cmp r11, #Check_Layers_per_bitplane
     blt .2
 
     ldr pc, [sp], #4
@@ -402,20 +249,6 @@ check_combos_x_table:
 check_combos_z_table:
     .long 0
 
-.if _DUAL_PF
-.else
-; Copy a line to screen (Screen_Stride bytes).
-; R9=source ptr.
-; R12=screen addr.
-; Trashes: r0-r3
-copy_combo_row:
-.rept Screen_Stride / 16
-    ldmia r9!, {r0-r3}
-    stmia r12!, {r0-r3}
-.endr
-    mov pc, lr
-.endif
-
 
 ; ========================================================================
 ; Plot all checks to the screen based on the Y position for each
@@ -427,11 +260,6 @@ copy_combo_row:
 ; 
 ; R12=screen addr
 ;
-; TODO NEXT: Convert this into _DUAL_PF implementation.
-; Worth just generating the per-scanline bitmask first?
-; Then do the source merge after?
-;
-.if _DUAL_PF
 calculate_scanline_bitmasks:
     str lr, [sp, #-4]!
 
@@ -545,16 +373,16 @@ plot_checks_to_screen:
     str lr, [sp, #-4]!
 
     ; Now blit everything to the screen.
-    ldr r14, check_line_combo_PF_p
+    ldr r14, check_bitplane_1_line_combos_p
     ldr r10, check_scanline_bitmask_p
     mov r11, #Screen_Height                 ; scanline.
 .8:
     mov r9, r14
-    sub r8, r9, #Screen_Stride * Check_Combos
+    sub r8, r9, #Screen_Stride * Check_Line_Combos
 
     ldr r7, [r10], #4       ; parity bitmask
-    mov r0, r7, lsr #Check_Layers
-    and r0, r0, #Check_Combos-1
+    mov r0, r7, lsr #Check_Layers_per_bitplane
+    and r0, r0, #Check_Line_Combos-1
 
     .if Screen_Stride == 160
     add r9, r9, r0, lsl #7  ; + parity word * 128
@@ -563,7 +391,7 @@ plot_checks_to_screen:
     .error "Expected Screen_Stride to be 160."
     .endif
 
-    and r7, r7, #Check_Combos-1
+    and r7, r7, #Check_Line_Combos-1
     add r8, r8, r7, lsl #7  ; + parity word * 128
     add r8, r8, r7, lsl #5  ; + parity word * 32
 
@@ -592,89 +420,6 @@ plot_checks_to_screen:
 check_scanline_bitmask_p:
     .long check_scanline_bitmask_no_adr
 
-.else
-plot_checks_to_screen:
-    str lr, [sp, #-4]!
-
-    adr r8, check_layer_y_pos
-    adr r6, check_layer_running_y
-    adr r4, check_layer_dx
-    adr r3, check_layer_z_pos
-    ldr r2, check_depths_dx_p
-
-    mov r7, #0                  ; parity word.
-    mov r5, #1                  ; bit!
-
-    ; Work out y pos and parity for top line of screen.
-
-    mov r10, #0                 ; layer
-.1:
-    ldr r1, [r8, r10, lsl #2]   ; y pos
-.2:
-    cmp r1, #Check_Size_Pixels<<16
-    subge r1, r1, #Check_Size_Pixels<<16
-    eorge r7, r7, r5, lsl r10
-    bge .2
-
-    str r1, [r6, r10, lsl #2]   ; running y
-
-    ldr r1, [r3, r10, lsl #2]   ; z pos for layer
-    mov r1, r1, lsr #16
-    ldr r1, [r2, r1, lsl #2]    ; dx for z pos for layer
-    str r1, [r4, r10, lsl #2]   ; store dx for layer
-
-    add r10, r10, #1
-    cmp r10, #Check_Layers
-    bne .1
-
-    mov r11, #0             ; scanline.
-.3:
-    ; Work out which combo line to plot based on parity of y pos.
-    ldr r9, check_line_combo_p
-    .if Screen_Stride == 160
-    add r9, r9, r7, lsl #7  ; + parity word * 128
-    add r9, r9, r7, lsl #5  ; + parity word * 32
-    .else
-    .error "Expected Screen_Stride to be 160."
-    .endif
-
-    ; 'Blit' to screen from r9 to r12.
-    bl copy_combo_row
-    ; Trashes r0-r3
-
-    ; Update all the running y positions per scanline...
-    mov r10, #0                 ; layer
-.4:
-    ldr r1, [r6, r10, lsl #2]   ; running y pos
-    ldr r2, [r4, r10, lsl #2]   ; dx for layer
-    add r1, r1, r2              ; y_pos += dx
-
-    ; Track parity for this layer.
-    cmp r1, #Check_Size_Pixels<<16
-    subge r1, r1, #Check_Size_Pixels<<16
-    eorge r7, r7, r5, lsl r10
-
-    str r1, [r6, r10, lsl #2]   ; running y
-
-    ; Next layer.
-    add r10, r10, #1
-    cmp r10, #Check_Layers
-    bne .4
-
-    ; Next scanline.
-    add r11, r11, #1
-    cmp r11, #Screen_Height
-    blt .3
-
-    ldr pc, [sp], #4
-
-check_layer_running_y:
-    .skip Check_Layers * 4
-
-check_layer_dx:
-    .skip Check_Layers * 4
-.endif
-
 ; ========================================================================
 
 update_check_layers:
@@ -683,7 +428,7 @@ update_check_layers:
     ; TODO: A less long-hand way of achieving this.
     .if _ENABLE_ROCKET
     .set _layer, 0
-    .rept Check_Layers * (1 + _DUAL_PF)
+    .rept Check_Total_Layers
     .set _track_base, _layer * 4
     mov r0, #_track_base + 0
     bl rocket_sync_get_val
@@ -741,7 +486,6 @@ check_layer_z_pos:
 
 ; ========================================================================
 
-.if _DUAL_PF
 plot_layer_fns:
     .long plot_layer_0_check_lines
     .long plot_layer_1_check_lines
@@ -1088,5 +832,3 @@ plot_layer_2_check_lines:
     sub r12, r12, #Screen_Stride * 7
 .endr
     mov pc, lr
-
-.endif

@@ -64,22 +64,20 @@ check_rows_pixel_7_no_adr:
 	.skip Rows_Width_Bytes * Check_Num_Depths
 
 .p2align 6
-check_line_combos_no_adr:
-	.skip Screen_Stride * Check_Combos
+check_bitplane_0_line_combos_no_adr:
+	.skip Screen_Stride * Check_Line_Combos
 
-.if _DUAL_PF
 .p2align 6
-check_line_combos_PF_no_adr:
-	.skip Screen_Stride * Check_Combos
+check_bitplane_1_line_combos_no_adr:
+	.skip Screen_Stride * Check_Line_Combos
 
-.if check_line_combos_PF_no_adr - check_line_combos_no_adr != Screen_Stride * Check_Combos
+.if check_bitplane_1_line_combos_no_adr - check_bitplane_0_line_combos_no_adr != Screen_Stride * Check_Line_Combos
 .error "Expected check_line_combos_PF_no_adr to be immediately after check_line_combos_no_adr."
 .endif
 
 .p2align 6
 check_scanline_bitmask_no_adr:
 	.skip Screen_Height * 4
-.endif
 
 .p2align 6
 check_depths_dx_no_adr:
