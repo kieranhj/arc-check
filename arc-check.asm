@@ -254,7 +254,7 @@ main_loop:
 	SET_BORDER 0xffff00	; cyan
 
 	; show debug
-	.if _DEBUG && 1
+	.if _DEBUG && 0
 	bl debug_write_vsync_count
 	.endif
 

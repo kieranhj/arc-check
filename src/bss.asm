@@ -72,6 +72,10 @@ check_line_combos_no_adr:
 check_line_combos_PF_no_adr:
 	.skip Screen_Stride * Check_Combos
 
+.if check_line_combos_PF_no_adr - check_line_combos_no_adr != Screen_Stride * Check_Combos
+.error "Expected check_line_combos_PF_no_adr to be immediately after check_line_combos_no_adr."
+.endif
+
 .p2align 6
 check_scanline_bitmask_no_adr:
 	.skip Screen_Height * 4
