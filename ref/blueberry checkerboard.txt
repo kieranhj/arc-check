@@ -279,6 +279,7 @@ STEPS
 12. Some sort of sequencing (Rocket?!?!) including swapping between checks and text.
     (Consider some sort of trick starting with 3/4/5x layers but writing over the top of it,
     before switching to more layers that can only be done with RM.)
+12a. Try 2x 4 layers version for ARM250.
 13. Win!
 
 Another performance test to try:
@@ -289,6 +290,10 @@ Another performance test to try:
     => If top combo layers all have bit 3 set, i.e. colours 1xxx
        Or even have bits 2&3 set, i.e. use colours 11xx
        Then mask can be computed from colour word by:
+- Simplest solution is to use top 2x bits for one bitplane and bottom 2x bits for the other.
+    - Mask these together with an appropriately programmed palette.
+    - Can't draw anything on top, except perhaps in black...
+
 
 ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b1aaa1bbb1ccc1ddd...)
 ; 8c

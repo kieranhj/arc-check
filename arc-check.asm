@@ -582,40 +582,40 @@ screen_addr:
 ; ============================================================================
 
 grey_palette:
-.if 0
-	.long 0x00000000
-	.long 0x00111111
-	.long 0x00222222
-	.long 0x00333333
-	.long 0x00444444
-	.long 0x00555555
-	.long 0x00666666
-	.long 0x00777777
-	.long 0x00888888
-	.long 0x00999999
-	.long 0x00AAAAAA
-	.long 0x00BBBBBB
-	.long 0x00CCCCCC
-	.long 0x00DDDDDD
-	.long 0x00EEEEEE
-	.long 0x00FFFFFF
+.if Check_Layers_per_bitplane == 4
+	.long 0x00000000	; 00 00
+	.long 0x000000ff	; 00 01	<= layer 0
+	.long 0x0000ff00	; 00 10	<= layer 1
+	.long 0x0000ffff	; 00 11	<= layer 2
+	.long 0x00ff0000	; 01 00	<= layer 3
+	.long 0x00555555	; 01 01
+	.long 0x00666666	; 01 10
+	.long 0x00777777	; 01 11
+	.long 0x00888888	; 10 00 
+	.long 0x00ff00ff	; 10 01	<= layer 4
+	.long 0x00ffff00	; 10 10	<= layer 5
+	.long 0x00880088	; 10 11	<= layer 6
+	.long 0x00888800	; 11 00	<= layer 7
+	.long 0x00DDDDDD	; 11 01
+	.long 0x00EEEEEE	; 11 10
+	.long 0x00FFFFFF	; 11 11
 .else
 	.long 0x00000000	; 00 00
-	.long 0x000000ff	; 00 01
-	.long 0x0000ff00	; 00 10
-	.long 0x0000ffff	; 00 11
-	.long 0x00ff0000	; 01 00
-	.long 0x00ff0000	; 01 01
-	.long 0x00ff0000	; 01 10
-	.long 0x00ff0000	; 01 11
-	.long 0x00ff00ff	; 10 00
-	.long 0x00ff00ff	; 10 01
-	.long 0x00ff00ff	; 10 10
-	.long 0x00ff00ff	; 10 11
-	.long 0x00ffff00	; 11 00
-	.long 0x00ffff00	; 11 01
-	.long 0x00ffff00	; 11 10
-	.long 0x00ffff00	; 11 11
+	.long 0x000000ff	; 00 01	<= layer 0
+	.long 0x0000ff00	; 00 10	<= layer 1
+	.long 0x0000ffff	; 00 11	<= layer 2
+	.long 0x00ff0000	; 01 00	<= layer 3
+	.long 0x00ff0000	; 01 01	<= layer 3
+	.long 0x00ff0000	; 01 10	<= layer 3
+	.long 0x00ff0000	; 01 11	<= layer 3
+	.long 0x00ff00ff	; 10 00	<= layer 4
+	.long 0x00ff00ff	; 10 01	<= layer 4
+	.long 0x00ff00ff	; 10 10	<= layer 4
+	.long 0x00ff00ff	; 10 11	<= layer 4
+	.long 0x00ffff00	; 11 00	<= layer 5
+	.long 0x00ffff00	; 11 01	<= layer 5
+	.long 0x00ffff00	; 11 10	<= layer 5
+	.long 0x00ffff00	; 11 11	<= layer 5
 .endif
 
 palette_osword_block:

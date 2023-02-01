@@ -13,7 +13,7 @@
 .equ Check_Size_Pixels, 320
 .equ Check_Depth_dx, 3276           ; 0.05<<16
 
-.equ Check_Layers_per_bitplane, 3
+.equ Check_Layers_per_bitplane, 4
 .equ Check_Total_Layers, Check_Layers_per_bitplane * 2
 .equ Check_Line_Combos, (1 << Check_Layers_per_bitplane)
 
@@ -163,13 +163,17 @@ plot_check_combos:
     ldr r12, check_bitplane_0_line_combos_p
     adr r4, check_layer_x_pos
     adr r5, check_layer_z_pos
-    mov r10, #0
+    mov r10, #0                 ; ab << 0
     bl plot_check_combo_layers
 
     ldr r12, check_bitplane_1_line_combos_p
     adr r4, check_layer_x_pos + Check_Layers_per_bitplane*4
     adr r5, check_layer_z_pos + Check_Layers_per_bitplane*4
-    mov r10, #0x02
+    .if Check_Layers_per_bitplane == 4
+    mov r10, #0x08              ; 1abc
+    .else
+    mov r10, #0x02              ; ab << 2
+    .endif
     bl plot_check_combo_layers
 
     ldr pc, [sp], #4
@@ -216,8 +220,11 @@ plot_check_combo_layers:
     add r10, r11, #1                     ; colour = layer+1
     ; Insert PF mask.
     ldr r0, check_combos_pf_mask
-;    orr r10, r10, r0
+    .if Check_Layers_per_bitplane == 4
+    orr r10, r10, r0                     ; 1abc
+    .else
     mov r10, r10, lsl r0                 ; abxx or xxab
+    .endif
     ; Convert into colour word.
     orr r10, r10, r10, lsl #4
     orr r10, r10, r10, lsl #8
@@ -367,20 +374,76 @@ calculate_scanline_bitmasks:
     cmp r14, #Screen_Height<<16
     blt .7
 
+; TODO: Can we do better than this? :(
+.if Check_Layers_per_bitplane == 4
+    adr r0, check_layer_z_pos + 6*4
+    ldr r1, check_depths_dx_p
+
+    ; Need 2x registers for z pos.
+    ldmia r0, {r6-r7}            ; r6-r7 = zpos
+    mov r6, r6, lsr #16
+    ldr r6, [r1, r6, lsl #2]      ; r6=dx for layer 6 at zpos
+    mov r7, r7, lsr #16
+    ldr r7, [r1, r7, lsl #2]      ; r7=dx for layer 7 at zpos
+
+    ; Need 2x registers for y pos.
+    adr r14, check_layer_y_pos + 6*4
+    ldmia r14, {r0-r1}          ; r0-r1 = ypos
+
+    ; 1x register for bitmask           |
+    mov r14, #0                 ; bitmask
+.8:
+    cmp r0, #Check_Size_Pixels<<16
+    subge r0, r0, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 6
+    bge .8
+
+.9:
+    cmp r1, #Check_Size_Pixels<<16
+    subge r1, r1, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 7
+    bge .9
+
+    ; 1x register for address to write bitmask.
+    ldr r12, check_scanline_bitmask_p
+
+    ; 1x register for scanline counter.
+    mov r11, #0
+.10:
+    ldr r10, [r12]
+    orr r10, r10, r14
+    str r10, [r12], #4           ; store parity bitmask to table.
+
+    ; Update all the running y positions per scanline...
+    add r0, r0, r6              ; y_pos += dx
+    cmp r0, #Check_Size_Pixels<<16
+    subge r0, r0, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 6
+
+    add r1, r1, r7              ; y_pos += dx
+    cmp r1, #Check_Size_Pixels<<16
+    subge r1, r1, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 7
+
+    ; Next scanline.
+    add r11, r11, #1
+    cmp r11, #Screen_Height
+    blt .10
+.endif
+
     ldr pc, [sp], #4
 
 plot_checks_to_screen:
     str lr, [sp, #-4]!
 
     ; Now blit everything to the screen.
-    ldr r14, check_bitplane_1_line_combos_p
-    ldr r10, check_scanline_bitmask_p
-    mov r11, #Screen_Height                 ; scanline.
+    mov r11, #0                 ; scanline.
 .8:
-    mov r9, r14
+    ldr r9, check_bitplane_1_line_combos_p
     sub r8, r9, #Screen_Stride * Check_Line_Combos
 
-    ldr r7, [r10], #4       ; parity bitmask
+    ldr r10, check_scanline_bitmask_p
+    ldr r7, [r10, r11, lsl #2]  ; parity bitmask
     mov r0, r7, lsr #Check_Layers_per_bitplane
     and r0, r0, #Check_Line_Combos-1
 
@@ -395,30 +458,66 @@ plot_checks_to_screen:
     add r8, r8, r7, lsl #7  ; + parity word * 128
     add r8, r8, r7, lsl #5  ; + parity word * 32
 
+.if Check_Layers_per_bitplane == 4
+    ldr r10, check_bitplane_mask
+.endif
+
     ; 'Blit' to screen from r9 to r12.
 .rept Screen_Stride / 16
     ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
     ; 8c
     ldmia r8!, {r4-r7}      ; load 4 words of bottom layers
     ; 8c
+.if Check_Layers_per_bitplane == 4
+    bic r14, r0, r10
+    orr r14, r14, r14, lsr #1
+    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    bic r4, r4, r14         ; mask out pixels from bottom layer
+    orr r4, r4, r0          ; mask in pixels from top layer
+
+    bic r14, r1, r10
+    orr r14, r14, r14, lsr #1
+    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    bic r5, r5, r14         ; mask out pixels from bottom layer
+    orr r5, r5, r1          ; mask in pixels from top layer
+
+    bic r14, r2, r10
+    orr r14, r14, r14, lsr #1
+    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    bic r6, r6, r14         ; mask out pixels from bottom layer
+    orr r6, r6, r2          ; mask in pixels from top layer
+
+    bic r14, r3, r10
+    orr r14, r14, r14, lsr #1
+    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    bic r7, r7, r14         ; mask out pixels from bottom layer
+    orr r7, r7, r3          ; mask in pixels from top layer
+.else
     orr r4, r4, r0          ; mask in pixels from top layer
     orr r5, r5, r1          ; mask in pixels from top layer
     orr r6, r6, r2          ; mask in pixels from top layer
     orr r7, r7, r3          ; mask in pixels from top layer
+.endif
     ; 4c
     stmia r12!, {r4-r7}
     ; 8c
 .endr
-    ; Trashes r0-r7
+    ; Trashes r0-r7 (r11, r14)
 
     ; Next scanline.
-    subs r11, r11, #1
+    add r11, r11, #1
+    cmp r11, #Screen_Height
     bne .8
 
     ldr pc, [sp], #4
 
 check_scanline_bitmask_p:
     .long check_scanline_bitmask_no_adr
+
+.if Check_Layers_per_bitplane == 4
+check_bitplane_mask:
+    .long 0x77777777        ; TODO: Just mov #imm this.
+.endif
 
 ; ========================================================================
 
@@ -490,6 +589,9 @@ plot_layer_fns:
     .long plot_layer_0_check_lines
     .long plot_layer_1_check_lines
     .long plot_layer_2_check_lines
+.if Check_Layers_per_bitplane == 4
+    .long plot_layer_3_check_lines
+.endif
 
 ; R9=check row source.
 ; R10=colour word.
@@ -507,6 +609,7 @@ plot_layer_0_check_lines:
     and r5, r5, r10        ; mask colour with source word
     and r6, r6, r10        ; mask colour with source word
     and r7, r7, r10        ; mask colour with source word
+
     stmia r12, {r0-r7}      ; +0
     add r8, r12, #Screen_Stride*2
     stmia r8, {r0-r7}       ; +2
@@ -514,6 +617,16 @@ plot_layer_0_check_lines:
     stmia r8, {r0-r7}       ; +4
     add r8, r8, #Screen_Stride*2
     stmia r8, {r0-r7}       ; +6
+    .if Check_Layers_per_bitplane == 4
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +8
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +10
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +12
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +14
+    .endif
 
     eor r0, r0, r10         ; invert colour bits
     eor r1, r1, r10         ; invert colour bits
@@ -523,6 +636,7 @@ plot_layer_0_check_lines:
     eor r5, r5, r10         ; invert colour bits
     eor r6, r6, r10         ; invert colour bits
     eor r7, r7, r10         ; invert colour bits
+
     add r8, r12, #Screen_Stride
     stmia r8, {r0-r7}       ; +1
     add r8, r8, #Screen_Stride*2
@@ -531,15 +645,21 @@ plot_layer_0_check_lines:
     stmia r8, {r0-r7}       ; +5
     add r8, r8, #Screen_Stride*2
     stmia r8, {r0-r7}       ; +7
+    .if Check_Layers_per_bitplane == 4
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +9
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +11
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +13
+    add r8, r8, #Screen_Stride*2
+    stmia r8, {r0-r7}       ; +15
+    .endif
     add r12, r12, #32
 .endr
     mov pc, lr
 
-plot_layer_1_check_lines:
-.rept Screen_Stride / 16
-    ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
-
-    ; +0
+.macro plot_layer_16_bytes
     ldmia r12, {r4-r7}      ; load 4 words of screen
     bic r4, r4, r0          ; mask out screen pixels to be written
     and r8, r0, r10         ; mask colour with source word
@@ -554,57 +674,44 @@ plot_layer_1_check_lines:
     and r8, r3, r10         ; mask colour with source word
     orr r7, r7, r8          ; mask in colour word
     stmia r12, {r4-r7}      ; write 4 words back to screen
+.endm
+
+plot_layer_1_check_lines:
+.rept Screen_Stride / 16
+    ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
+
+    ; +0
+    plot_layer_16_bytes
 
     ; +1
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +4
     add r12, r12, #Screen_Stride * 3
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +5
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
+
+    .if Check_Layers_per_bitplane == 4
+    ; +8
+    add r12, r12, #Screen_Stride * 3
+    plot_layer_16_bytes
+
+    ; +9
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +12
+    add r12, r12, #Screen_Stride * 3
+    plot_layer_16_bytes
+
+    ; +13
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+    .endif
 
     mov r8, #0xffffffff
     eor r0, r0, r8         ; invert source bits
@@ -613,74 +720,47 @@ plot_layer_1_check_lines:
     eor r3, r3, r8         ; invert source bits
 
     ; +2
+    .if Check_Layers_per_bitplane == 4
+    sub r12, r12, #Screen_Stride * 11
+    .else
     sub r12, r12, #Screen_Stride * 3
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    .endif
+    plot_layer_16_bytes
 
     ; +3
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +6
     add r12, r12, #Screen_Stride * 3
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +7
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12!, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
-    sub r12, r12, #Screen_Stride * 7
+    .if Check_Layers_per_bitplane == 4
+    ; +10
+    add r12, r12, #Screen_Stride * 3
+    plot_layer_16_bytes
+
+    ; +11
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +14
+    add r12, r12, #Screen_Stride * 3
+    plot_layer_16_bytes
+
+    ; +15
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +0
+    sub r12, r12, #Screen_Stride * 15 - 16
+    .else
+    sub r12, r12, #Screen_Stride * 7 - 16
+    .endif
 .endr
     mov pc, lr
 
@@ -689,71 +769,37 @@ plot_layer_2_check_lines:
     ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
 
     ; +0
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}      ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +1
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +2
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +3
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
+
+    .if Check_Layers_per_bitplane == 4
+    ; +8
+    add r12, r12, #Screen_Stride * 5
+    plot_layer_16_bytes
+
+    ; +9
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +10
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +11
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+    .endif
 
     mov r8, #0xffffffff
     eor r0, r0, r8         ; invert source bits
@@ -762,73 +808,126 @@ plot_layer_2_check_lines:
     eor r3, r3, r8         ; invert source bits
 
     ; +4
+    .if Check_Layers_per_bitplane == 4
+    sub r12, r12, #Screen_Stride * 7
+    .else
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    .endif
+    plot_layer_16_bytes
 
     ; +5
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +6
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
     ; +7
     add r12, r12, #Screen_Stride
-    ldmia r12, {r4-r7}      ; load 4 words of screen
-    bic r4, r4, r0          ; mask out screen pixels to be written
-    and r8, r0, r10         ; mask colour with source word
-    orr r4, r4, r8          ; mask in colour word
-    bic r5, r5, r1          ; mask out screen pixels to be written
-    and r8, r1, r10         ; mask colour with source word
-    orr r5, r5, r8          ; mask in colour word
-    bic r6, r6, r2          ; mask out screen pixels to be written
-    and r8, r2, r10         ; mask colour with source word
-    orr r6, r6, r8          ; mask in colour word
-    bic r7, r7, r3          ; mask out screen pixels to be written
-    and r8, r3, r10         ; mask colour with source word
-    orr r7, r7, r8          ; mask in colour word
-    stmia r12!, {r4-r7}     ; write 4 words back to screen
+    plot_layer_16_bytes
 
-    sub r12, r12, #Screen_Stride * 7
+    .if Check_Layers_per_bitplane == 4
+    ; +12
+    add r12, r12, #Screen_Stride * 5
+    plot_layer_16_bytes
+
+    ; +13
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +14
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +15
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +0
+    sub r12, r12, #Screen_Stride * 15 - 16
+    .else
+    sub r12, r12, #Screen_Stride * 7 - 16
+    .endif
 .endr
     mov pc, lr
+
+.if Check_Layers_per_bitplane == 4
+plot_layer_3_check_lines:
+.rept Screen_Stride / 16
+    ldmia r9!, {r0-r3}      ; load 4 words of source (all bits set for a pixel, so 0xabcdefg where each=0x0 or 0xf)
+
+    ; +0
+    plot_layer_16_bytes
+
+    ; +1
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +2
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +3
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +4
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +5
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +6
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +7
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    mov r8, #0xffffffff
+    eor r0, r0, r8         ; invert source bits
+    eor r1, r1, r8         ; invert source bits
+    eor r2, r2, r8         ; invert source bits
+    eor r3, r3, r8         ; invert source bits
+
+    ; +8
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +9
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +10
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +11
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +12
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +13
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +14
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +15
+    add r12, r12, #Screen_Stride
+    plot_layer_16_bytes
+
+    ; +0
+    sub r12, r12, #Screen_Stride * 15 - 16
+.endr
+    mov pc, lr
+.endif
