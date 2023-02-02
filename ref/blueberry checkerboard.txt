@@ -275,11 +275,13 @@ STEPS
 11. Try setting check size to 512 - does this make everything simpler?
     - Didn't go to plan. ;)
 11a. Need a scheme to enable setting Y value as line offset not V [i.e. 0-320 in check] per layer.
-    - Also (0,0) to be centre of the screen would be easier...
+    - Also (0,0) to be centre of the screen would be easier... - DONE
+    => Set camera x,y,z as pixel coordinates [0-319 across square at depth 0] and depth [0-511].
+11b. Need to fix colour handling to ensure world colours stay constant.
 12. Some sort of sequencing (Rocket?!?!) including swapping between checks and text.
     (Consider some sort of trick starting with 3/4/5x layers but writing over the top of it,
     before switching to more layers that can only be done with RM.)
-12a. Try 2x 4 layers version for ARM250.
+12a. Try 2x 4 layers version for ARM250. - DONE
 13. Win!
 
 Another performance test to try:
@@ -324,3 +326,28 @@ stmia r12!, {r4-r7}     ; write 4 words to screen
 N=4 DPF=256+2*4=262 vs 4*16=64
 N=6 DPF=256+2*8=272 vs 6*64=384
 N=8 DPF=256+2*16=288 vs 8*256=2048
+
+Coordinate scheme
+~~~
+Ideally want to be able to specify a camera position (x,y,z)
+Where (0,0,0) is the centre of the checkerboard grid and the
+checkerboard squares are at the maximum size (320 pixels).
+And (x,y) are in pixels and z represents our depth values [0-511].
+
+To begin assume all checkerboards are locked to (0,0,dn)
+
+At z=0:
+- x offset for layer is Rows_Width_Pixels/2 + (x - 160) pixels
+- y offset for layer is 160 - (128 + y) pixels
+
+At z=n:
+- x offset is Rows_Width_Pixels/2 + (x - 160) <= invariant.
+- x offset is 160 - (128 + y) * dxn
+Where dxn is the dx value for depth n.
+
+E.g. z=100, dxn=1+100*0.05=6.
+- y = 160 - 128*6 = 160 - 768 = 
+
+One set of world coordinates for camera & checkerboard centre (x,y,z)
+Compute camera relative checkerboard layer offsets x,y,z.
+

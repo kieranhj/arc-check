@@ -8,10 +8,12 @@
 
 .equ Rows_Width_Pixels, 512
 .equ Rows_Width_Bytes, Rows_Width_Pixels/2
+.equ Rows_Centre_Left_Edge, (Rows_Width_Pixels/2) - (Screen_Width/2)
 
 .equ Check_Num_Depths, 512
 .equ Check_Size_Pixels, 320
 .equ Check_Depth_dx, 3276           ; 0.05<<16
+.equ Layer_Centre_Top_Edge, (Check_Size_Pixels/2)
 
 .equ Check_Layers_per_bitplane, 4
 .equ Check_Total_Layers, Check_Layers_per_bitplane * 2
@@ -265,66 +267,101 @@ check_combos_z_table:
 ; screen.
 ; ========================================================================
 ; 
-; R12=screen addr
-;
 calculate_scanline_bitmasks:
     str lr, [sp, #-4]!
 
-    ; Need 6x registers for dx.
-    adr r0, check_layer_z_pos
-    ldr r1, check_depths_dx_p
-
-    ldmia r0, {r6-r11}            ; r6-r11 = zpos
-    mov r6, r6, lsr #16
-    ldr r6, [r1, r6, lsl #2]      ; r6=dx for layer 0 at zpos
-    mov r7, r7, lsr #16
-    ldr r7, [r1, r7, lsl #2]      ; r7=dx for layer 1 at zpos
-    mov r8, r8, lsr #16
-    ldr r8, [r1, r8, lsl #2]      ; r8=dx for layer 2 at zpos
-    mov r9, r9, lsr #16
-    ldr r9, [r1, r9, lsl #2]      ; r9=dx for layer 3 at zpos
-    mov r10, r10, lsr #16
-    ldr r10, [r1, r10, lsl #2]    ; r10=dx for layer 4 at zpos
-    mov r11, r11, lsr #16
-    ldr r11, [r1, r11, lsl #2]    ; r11=dx for layer 5 at zpos
-    
     ; Need 6x registers for y pos.
     adr r14, check_layer_y_pos
     ldmia r14, {r0-r5}          ; r0-r5 = ypos
 
+    ; Need 6x registers for dx.
+    adr r12, check_layer_z_pos
+    ldr r14, check_depths_dx_p
+
+    ldmia r12, {r6-r11}            ; r6-r11 = zpos
+
+    mov r6, r6, lsr #16
+    ldr r6, [r14, r6, lsl #2]      ; r6=dx for layer 0 at zpos
+    mov r7, r7, lsr #16
+    ldr r7, [r14, r7, lsl #2]      ; r7=dx for layer 1 at zpos
+    mov r8, r8, lsr #16
+    ldr r8, [r14, r8, lsl #2]      ; r8=dx for layer 2 at zpos
+    mov r9, r9, lsr #16
+    ldr r9, [r14, r9, lsl #2]      ; r9=dx for layer 3 at zpos
+    mov r10, r10, lsr #16
+    ldr r10, [r14, r10, lsl #2]    ; r10=dx for layer 4 at zpos
+    mov r11, r11, lsr #16
+    ldr r11, [r14, r11, lsl #2]    ; r11=dx for layer 5 at zpos
+    
     ; 1x register for scanline counter - combine ?
     ; 1x register for bitmask           |
     mov r14, #0                 ; bitmask & scanline counter!!
+    subs r0, r0, r6, lsl #7          ; y -= 128*dx
+    bpl .1
+.11:
+    adds r0, r0, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 0
+    bmi .11
 .1:
     cmp r0, #Check_Size_Pixels<<16
     subge r0, r0, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 0
     bge .1
 
+    subs r1, r1, r7, lsl #7          ; y -= 128*dx
+    bpl .2
+.12:
+    adds r1, r1, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 1
+    bmi .12
 .2:
     cmp r1, #Check_Size_Pixels<<16
     subge r1, r1, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 1
     bge .2
 
+    subs r2, r2, r8, lsl #7          ; y -= 128*dx
+    bpl .3
+.13:
+    adds r2, r2, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 2
+    bmi .13
 .3:
     cmp r2, #Check_Size_Pixels<<16
     subge r2, r2, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 2
     bge .3
 
+    subs r3, r3, r9, lsl #7          ; y -= 128*dx
+    bpl .4
+.14:
+    adds r3, r3, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 3
+    bmi .14
 .4:
     cmp r3, #Check_Size_Pixels<<16
     subge r3, r3, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 3
     bge .4
 
+    subs r4, r4, r10, lsl #7          ; y -= 128*dx
+    bpl .5
+.15:
+    adds r4, r4, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 4
+    bmi .15
 .5:
     cmp r4, #Check_Size_Pixels<<16
     subge r4, r4, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 4
     bge .5
 
+    subs r5, r5, r11, lsl #7          ; y -= 128*dx
+    bpl .6
+.16:
+    adds r5, r5, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 5
+    bmi .16
 .6:
     cmp r5, #Check_Size_Pixels<<16
     subge r5, r5, #Check_Size_Pixels<<16
@@ -392,12 +429,24 @@ calculate_scanline_bitmasks:
 
     ; 1x register for bitmask           |
     mov r14, #0                 ; bitmask
+    subs r0, r0, r6, lsl #7          ; y -= 128*dx
+    bpl .8
+.18:
+    adds r0, r0, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 6
+    bmi .18
 .8:
     cmp r0, #Check_Size_Pixels<<16
     subge r0, r0, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 6
     bge .8
 
+    subs r1, r1, r7, lsl #7          ; y -= 128*dx
+    bpl .9
+.19:
+    adds r1, r1, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 7
+    bmi .19
 .9:
     cmp r1, #Check_Size_Pixels<<16
     subge r1, r1, #Check_Size_Pixels<<16
@@ -531,26 +580,92 @@ update_check_layers:
     .set _track_base, _layer * 4
     mov r0, #_track_base + 0
     bl rocket_sync_get_val
-    str r1, check_layer_x_pos + _track_base
+    str r1, check_world_x_pos + _track_base
 
     mov r0, #_track_base + 1
     bl rocket_sync_get_val
-    str r1, check_layer_y_pos + _track_base
+    str r1, check_world_y_pos + _track_base
 
     mov r0, #_track_base + 2
     bl rocket_sync_get_val
-    str r1, check_layer_z_pos + _track_base
+    str r1, check_world_z_pos + _track_base
 
     ; TODO: Layer colour in _track_base + 3
     .set _layer, _layer + 1
     .endr
     .endif
 
+    ; Convert world coordinates to camera relative positions.
+    ; TODO: Use vector lib?
+
+    ldr r0, camera_x_pos
+    ldr r1, camera_y_pos
+    ldr r2, camera_z_pos
+
+    ; Find furthest checkerboard.
+    adr r6, check_world_x_pos
+    adr r7, check_world_y_pos
+    adr r8, check_world_z_pos
+    mov r9, #0                  ; index.
+    mov r10, #0                 ; max depth.
+    mov r11, #0                 ; counter.
+.1:
+    ldr r5, [r8, r11, lsl #2]    ; check world z pos.
+    subs r5, r5, r2              ; camera z pos.
+    addmi r5, r5, #Check_Num_Depths<<16
+    cmp r5, r10
+    movgt r10, r5
+    movgt r9, r11
+    add r11, r11, #1
+    cmp r11, #Check_Total_Layers
+    blt .1
+
+    adr r10, check_layer_x_pos
+    adr r12, check_layer_y_pos
+    adr r14, check_layer_z_pos
+
+    ; r9 = index of furthest layer
+    mov r11, #0                 ; counter.
+.2:
+    ldr r3, [r6, r9, lsl #2]    ; check world x pos.
+    ldr r4, [r7, r9, lsl #2]    ; check world y pos.
+    ldr r5, [r8, r9, lsl #2]    ; check world z pos.
+
+    ; Make X relative
+    sub r3, r3, r0
+    add r3, r3, #Rows_Centre_Left_Edge << 16
+
+    ; Make Y relative
+    sub r4, r4, r1
+    add r4, r4, #Layer_Centre_Top_Edge << 16
+
+    ; Make Z relative
+    subs r5, r5, r2
+    addmi r5, r5, #Check_Num_Depths<<16
+
+    str r3, [r10, r11, lsl #2]  ; store relative x pos.
+    str r4, [r12, r11, lsl #2]  ; store relative y pos.
+    str r5, [r14, r11, lsl #2]  ; store relative z pos.
+
+    add r9, r9, #1
+    cmp r9, #Check_Total_Layers
+    movge r9, #0
+
+    add r11, r11, #1
+    cmp r11, #Check_Total_Layers
+    blt .2
+
+    ; Move camera!
+    add r2, r2, #1<<16
+    cmp r2, #Check_Num_Depths<<16
+    subge r2, r2, #Check_Num_Depths<<16
+    str r2, camera_z_pos
+
     ldr pc, [sp], #4
 
 
 ; ========================================================================
-; X, Y, Z positions for each layer.
+; Camera relative X, Y, Z positions for each layer.
 ; ========================================================================
 
 check_layer_x_pos:
@@ -565,15 +680,58 @@ check_layer_x_pos:
 
 check_layer_y_pos:
     .long 160 << 16
-    .long 20 << 16
-    .long 30 << 16
-    .long 40 << 16
-    .long 50 << 16
-    .long 60 << 16
-    .long 70 << 16
-    .long 80 << 16
+    .long 160 << 16
+    .long 160 << 16
+    .long 160 << 16
+    .long 160 << 16
+    .long 160 << 16
+    .long 160 << 16
+    .long 160 << 16
 
 check_layer_z_pos:
+    .long 511 << 16
+    .long 256 << 16
+    .long 128 << 16
+    .long 96 << 16
+    .long 64 << 16
+    .long 32 << 16
+    .long 16 << 16
+    .long 8 << 16
+
+; ========================================================================
+; World positions of camera & checkerboards.
+; ========================================================================
+
+camera_x_pos:
+    .long 0 << 16
+
+camera_y_pos:
+    .long 0 << 16
+
+camera_z_pos:
+    .long 0 << 16
+
+check_world_x_pos:
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+
+check_world_y_pos:
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+    .long 0 << 16
+
+check_world_z_pos:
     .long 511 << 16
     .long 256 << 16
     .long 128 << 16
