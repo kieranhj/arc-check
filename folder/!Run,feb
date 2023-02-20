@@ -7,10 +7,10 @@ FONTSIZE 0
 SPRITESIZE 0
 RMKILL MemAlloc 
 |
-RMLOAD <Demo$Dir>.QTM148u { > null: }
-RMLOAD <Demo$Dir>.RasterM29 { > null: }
-wimpslot -min 1500K
+RMLOAD <Demo$Dir>.QTM149a { > null: }
+|RMLOAD <Demo$Dir>.RasterM29 { > null: }
+wimpslot -min 2500K
 <Demo$Dir>.!RunImage
 |
-RMKILL RasterMan
+|RMKILL RasterMan
 RMKILL QTMTracker

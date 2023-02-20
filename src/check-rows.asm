@@ -6,7 +6,7 @@
 ; Combine 2xN layers together by masking 'bitplanes' to screen.
 ; ============================================================================
 
-.equ Rows_Width_Pixels, 512
+.equ Rows_Width_Pixels, 1024
 .equ Rows_Width_Bytes, Rows_Width_Pixels/2
 .equ Rows_Centre_Left_Edge, (Rows_Width_Pixels/2) - (Screen_Width/2)
 
@@ -211,8 +211,8 @@ plot_check_combo_layers:
     mov r1, r1, lsr #16
 
     ; Add Rows_Width * z_pos
-    .if Rows_Width_Bytes == 256
-    add r9, r9, r1, lsl #8              ; z * 256
+    .if Rows_Width_Bytes == 512
+    add r9, r9, r1, lsl #9              ; z * 512
     .else
     .error "Expected Rows_Width_Bytes to be 256."
     .endif
@@ -570,6 +570,69 @@ check_bitplane_mask:
 
 ; ========================================================================
 
+; R12=scr bank.
+check_layers_set_colours:
+    str lr, [sp, #-4]!
+
+    ldr r8, palette_blocks_p
+    add r8, r8, r12, lsl #6     ; scr_bank * 64.
+;    str r8, palette_block_addr
+
+    adr r9, check_layer_colour
+    mov r11, #0
+.1:
+    ldr r4, [r9], #4        ; 0x0BGR
+
+.if Check_Layers_per_bitplane == 4
+    ; Map layer no. to index 1,2,3,4,9,10,11,12
+    add r3, r11, #1         ; index = layer + 1
+    cmp r11, #0x4           ; top layer?
+    addge r3, r3, #4
+    orr r4, r4, r3, lsl #26 ; VIDC register = index << 26 | bgr
+    str r4, [r8], #4        ; store VIDC register.
+.else
+    ; Map layer no. to index 1,2,3,[4,5,6,7],[8,9,10,11],[12,13,14,15]
+    cmp r11, #0x3
+    blt .2
+
+    sub r3, r11, #2         ; 1,2,3
+    mov r3, r3, lsl #2      ; 4,8,12 ; base index
+    mov r10, #0
+.3:
+    bic r4, r4, #0xff000000
+    bic r3, r3, #0x3
+    orr r3, r3, r10
+    orr r4, r4, r3, lsl #26 ; VIDC register = index << 26 | bgr
+    str r4, [r8], #4        ; store VIDC register.
+
+    add r10, r10, #1
+    cmp r10, #4
+    blt .3
+    b .4
+
+.2:
+    add r3, r11, #1         ; index = layer + 1
+    orr r4, r4, r3, lsl #26 ; VIDC register = index << 26 | bgr
+    str r4, [r8], #4        ; store VIDC register.
+.4:
+.endif
+
+    add r11, r11, #1
+    cmp r11, #Check_Total_Layers
+    blt .1
+
+.if Check_Layers_per_bitplane == 4
+    mov r0, #-1
+    str r0, [r8]            ; end of VIDC regs.
+.endif
+
+    ldr pc, [sp], #4
+
+palette_blocks_p:
+    .long palette_blocks_for_banks_no_adr - 64
+
+; ========================================================================
+
 update_check_layers:
     str lr, [sp, #-4]!
 
@@ -603,14 +666,12 @@ update_check_layers:
     ldr r2, camera_z_pos
 
     ; Find furthest checkerboard.
-    adr r6, check_world_x_pos
-    adr r7, check_world_y_pos
-    adr r8, check_world_z_pos
+    adr r8, check_world_params + 8     ; z pos.
     mov r9, #0                  ; index.
     mov r10, #0                 ; max depth.
     mov r11, #0                 ; counter.
 .1:
-    ldr r5, [r8, r11, lsl #2]    ; check world z pos.
+    ldr r5, [r8, r11, lsl #4]    ; check world z pos.
     subs r5, r5, r2              ; camera z pos.
     addmi r5, r5, #Check_Num_Depths<<16
     cmp r5, r10
@@ -623,13 +684,15 @@ update_check_layers:
     adr r10, check_layer_x_pos
     adr r12, check_layer_y_pos
     adr r14, check_layer_z_pos
+    adr r7, check_layer_colour
+
+    adr r8, check_world_params
+    add r8, r8, r9, lsl #4      ; &check_world_params[r9]
 
     ; r9 = index of furthest layer
     mov r11, #0                 ; counter.
 .2:
-    ldr r3, [r6, r9, lsl #2]    ; check world x pos.
-    ldr r4, [r7, r9, lsl #2]    ; check world y pos.
-    ldr r5, [r8, r9, lsl #2]    ; check world z pos.
+    ldmia r8!, {r3-r6}           ; world x, y, z, colour
 
     ; Make X relative
     sub r3, r3, r0
@@ -646,10 +709,12 @@ update_check_layers:
     str r3, [r10, r11, lsl #2]  ; store relative x pos.
     str r4, [r12, r11, lsl #2]  ; store relative y pos.
     str r5, [r14, r11, lsl #2]  ; store relative z pos.
+    str r6, [r7, r11, lsl #2]   ; store relative colour.
 
     add r9, r9, #1
     cmp r9, #Check_Total_Layers
     movge r9, #0
+    adrge r8, check_world_params    ; &check_world_params[0]
 
     add r11, r11, #1
     cmp r11, #Check_Total_Layers
@@ -661,8 +726,28 @@ update_check_layers:
     subge r2, r2, #Check_Num_Depths<<16
     str r2, camera_z_pos
 
+    ldr r0, camera_frame
+    add r0, r0, #1
+    str r0, camera_frame
+
+    mov r1, r0
+    mov r0, r0, lsl #7          ; camera_frame * 128
+    bl sine
+    ; R0 = sin(2 * PI * camera_frame / 512)
+    mov r0, r0, lsl #8          ; sin(a) * 256
+    str r0, camera_y_pos
+
+    mov r0, r1, lsl #7          ; camera_frame * 128
+    bl sine
+    ; R0 = sin(2 * PI * camera_frame / 512)
+    mov r0, r0, lsl #8          ; sin(a) * 256
+    str r0, camera_x_pos
+
+
     ldr pc, [sp], #4
 
+camera_frame:
+    .long 0
 
 ; ========================================================================
 ; Camera relative X, Y, Z positions for each layer.
@@ -698,6 +783,16 @@ check_layer_z_pos:
     .long 16 << 16
     .long 8 << 16
 
+check_layer_colour:
+    .long 0xfff
+    .long 0xfff
+    .long 0xfff
+    .long 0xfff
+    .long 0xfff
+    .long 0xfff
+    .long 0xfff
+    .long 0xfff
+
 ; ========================================================================
 ; World positions of camera & checkerboards.
 ; ========================================================================
@@ -711,35 +806,15 @@ camera_y_pos:
 camera_z_pos:
     .long 0 << 16
 
-check_world_x_pos:
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-
-check_world_y_pos:
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-    .long 0 << 16
-
-check_world_z_pos:
-    .long 511 << 16
-    .long 256 << 16
-    .long 128 << 16
-    .long 96 << 16
-    .long 64 << 16
-    .long 32 << 16
-    .long 16 << 16
-    .long 8 << 16
+check_world_params:
+    .long 0 << 16, 0 << 16, 511 << 16, 0x00f
+    .long 0 << 16, 0 << 16, 256 << 16, 0x0f0
+    .long 0 << 16, 0 << 16, 128 << 16, 0x0ff
+    .long 0 << 16, 0 << 16, 96 << 16,  0xf00
+    .long 0 << 16, 0 << 16, 64 << 16,  0xf0f
+    .long 0 << 16, 0 << 16, 32 << 16,  0xff0
+    .long 0 << 16, 0 << 16, 16 << 16,  0x808
+    .long 0 << 16, 0 << 16, 8 << 16,   0x880
 
 ; ========================================================================
 

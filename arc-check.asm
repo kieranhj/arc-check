@@ -1,5 +1,5 @@
 ; ============================================================================
-; Prototype Framework - stripped back from tipsy-cube.
+; Archimedes Checkerboard Challenge!
 ; ============================================================================
 
 .equ _DEBUG, 1
@@ -10,6 +10,10 @@
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
 .equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
+.equ _DEBUG_STOP_ON_FRAME, -1
+.equ _DEBUG_DEFAULT_PLAY_PAUSE, 1		; play
+.equ _DEBUG_DEFAULT_SHOW_RASTERS, 0
+.equ _DEBUG_DEFAULT_SHOW_INFO, 1		; slow
 
 ; ============================================================================
 
@@ -70,6 +74,10 @@ main:
 	SWI OS_WriteC
 	SWI OS_WriteC
 	SWI OS_WriteC
+
+	mov r0, #9
+	mov r1, #0
+	swi OS_Byte				; *FX 9,0 to disable flashing colours.
 
 	; Set screen size for number of buffers
 	MOV r0, #DynArea_Screen
@@ -174,6 +182,33 @@ main:
 
 main_loop:
 
+	.if _DEBUG
+	bl debug_controls
+	.endif
+
+	; exit if Escape is pressed
+	.if _ENABLE_RASTERMAN
+	swi RasterMan_ScanKeyboard
+	mov r1, #0xc0c0
+	cmp r0, r1
+	beq exit
+	.else
+	swi OS_ReadEscapeState
+	bcs exit
+	.endif
+	
+	.if _DEBUG
+	ldrb r0, debug_play_pause
+	cmp r0, #0
+	bne .3
+
+	ldrb r0, debug_play_step
+	cmp r0, #0
+	beq main_loop_skip_tick
+	.3:
+	.endif
+
+
 	; ========================================================================
 	; TICK
 	; ========================================================================
@@ -195,6 +230,8 @@ main_loop:
 	SET_BORDER 0xff0000	; blue
 
 	bl calculate_scanline_bitmasks
+
+main_loop_skip_tick:
 
 	; ========================================================================
 	; VSYNC
@@ -251,6 +288,11 @@ main_loop:
 	ldr r12, screen_addr
 	bl plot_checks_to_screen
 
+	SET_BORDER 0x00ffff	; yellow
+
+	ldr r12, scr_bank
+	bl check_layers_set_colours
+
 	SET_BORDER 0xffff00	; cyan
 
 	; show debug
@@ -265,17 +307,6 @@ main_loop:
 	; LOOP
 	; ========================================================================
 
-	; exit if Escape is pressed
-	.if _ENABLE_RASTERMAN
-	swi RasterMan_ScanKeyboard
-	mov r1, #0xc0c0
-	cmp r0, r1
-	beq exit
-	.else
-	swi OS_ReadEscapeState
-	bcs exit
-	.endif
-	
 	b main_loop
 
 music_data_p:
@@ -289,6 +320,10 @@ error_noscreenmem:
 
 .if _DEBUG
 debug_write_vsync_count:
+	ldrb r0, debug_show_info
+	cmp r0, #0
+	moveq pc, lr
+
 	str lr, [sp, #-4]!
 	swi OS_WriteI+30			; home text cursor
 
@@ -333,6 +368,117 @@ debug_write_vsync_count:
 
 debug_string:
 	.skip 16
+
+debug_controls:
+	MOV r0, #OSByte_ReadKey
+	MOV r1, #IKey_Space
+	MOV r2, #0xff
+	SWI OS_Byte
+	CMP r1, #0xff
+	CMPEQ r2, #0xff
+	BNE .1 ; not pressed
+	ldrb r0, debug_debounce_space
+	cmp r0, #0
+	bne .1 ; still pressed
+
+	; Toggle play/pause.
+	ldrb r0, debug_play_pause
+	eor r0, r0, #1
+	strb r0, debug_play_pause
+	.1:
+	strb r1, debug_debounce_space
+
+	mov r0, #0
+	strb r0, debug_play_step
+
+	; Advance frame (with repeat):
+	MOV r0, #OSByte_ReadKey
+	MOV r1, #IKey_ArrowRight
+	MOV r2, #0xff
+	SWI OS_Byte
+	CMP r1, #0xff
+	CMPEQ r2, #0xff
+	streqb r1, debug_play_step
+
+	.2:
+	; Advance frame (without repeat):
+	MOV r0, #OSByte_ReadKey
+	MOV r1, #IKey_S
+	MOV r2, #0xff
+	SWI OS_Byte
+	CMP r1, #0xff
+	CMPEQ r2, #0xff
+	bne .3
+	ldrb r0, debug_debounce_s
+	cmp r0, #0
+	bne .3
+	strb r1, debug_play_step
+	.3:
+	strb r1, debug_debounce_s
+
+	; Toggle debug info.
+	MOV r0, #OSByte_ReadKey
+	MOV r1, #IKey_D
+	MOV r2, #0xff
+	SWI OS_Byte
+	CMP r1, #0xff
+	CMPEQ r2, #0xff
+	bne .4
+	ldrb r0, debug_debounce_d
+	cmp r0, #0
+	bne .4
+	ldrb r0, debug_show_info
+	eor r0, r0, #1
+	strb r0, debug_show_info
+	.4:
+	strb r1, debug_debounce_d
+
+
+	; Toggle rasters
+	MOV r0, #OSByte_ReadKey
+	MOV r1, #IKey_R
+	MOV r2, #0xff
+	SWI OS_Byte
+	CMP r1, #0xff
+	CMPEQ r2, #0xff
+	bne .5
+	ldrb r0, debug_debounce_r
+	cmp r0, #0
+	bne .5
+	ldrb r0, debug_show_rasters
+	eor r0, r0, #1
+	strb r0, debug_show_rasters
+	.5:
+	strb r1, debug_debounce_r
+
+	mov pc, lr
+
+debug_debounce_space:
+	.byte 0
+
+debug_debounce_s:
+	.byte 0
+
+debug_debounce_d:
+	.byte 0
+
+debug_debounce_r:
+	.byte 0
+
+debug_play_pause:
+	.byte _DEBUG_DEFAULT_PLAY_PAUSE
+
+debug_play_step:
+	.byte 0
+
+debug_show_info:
+	.byte _DEBUG_DEFAULT_SHOW_INFO
+
+debug_show_rasters:
+	.byte _DEBUG_DEFAULT_SHOW_RASTERS
+
+d_StopOnFrame:
+	.long _DEBUG_STOP_ON_FRAME
 .endif
 
 get_screen_addr:
@@ -411,7 +557,7 @@ event_handler:
 	ADD r0, r0, #1
 	STR r0, vsync_count
 
-.if 0
+.if 1
 	; is there a new screen buffer ready to display?
 	LDR r1, buffer_pending
 	CMP r1, #0
@@ -421,7 +567,6 @@ event_handler:
 	MOV r0, #0
 	STR r0, buffer_pending
 	MOV r0, #OSByte_WriteDisplayBank
-
 	; some SVC stuff I don't understand :)
 	STMDB sp!, {r2-r12}
 	MOV r9, pc     ;Save old mode
@@ -430,37 +575,44 @@ event_handler:
 	MOV r0,r0
 	STR lr, [sp, #-4]!
 	SWI XOS_Byte
+.endif
 
-	; set full palette if there is a pending palette block
-	ldr r2, palette_pending
-	cmp r2, #0
-	beq .4
+.if 1
+	; is there a palette update ready to display?
+	LDR r1, palette_pending
+	CMP r1, #0
+	.if 1
+	beq .2
+	.else
+	LDMEQIA sp!, {r0-r1, pc}
 
-    adr r1, palette_osword_block
-    mov r0, #16
-    strb r0, [r1, #1]       ; physical colour
+	; Switch to Supervisor mode
+	STMDB sp!, {r2-r12}
+	MOV r9, pc     ;Save old mode
+	ORR r8, r9, #3 ;SVC mode
+	TEQP r8, #0
+	MOV r0,r0
+	STR lr, [sp, #-4]!
+	.endif
 
-    mov r3, #0
-    .3:
-    strb r3, [r1, #0]       ; logical colour
+	; Write palette directly to VIDC.
+	adr r2, palette_blocks_for_banks_no_adr - 64	; THIS IS OK FOR US!
+	add r1, r2, r1, lsl #6
 
-    ldr r4, [r2], #4        ; rgbx
-    and r0, r4, #0xff
-    strb r0, [r1, #2]       ; red
-    mov r0, r4, lsr #8
-    strb r0, [r1, #3]       ; green
-    mov r0, r4, lsr #16
-    strb r0, [r1, #4]       ; blue
-    mov r0, #12
-    swi XOS_Word
-
-    add r3, r3, #1
-    cmp r3, #16
-    blt .3
-
+	mov r4, #-1
+	mov r0, #VIDC_Write
+	mov r3, #16
+.1:
+	ldr r2, [r1]
+	str r4, [r1], #4
+	cmp r2, #-1
+	beq .2
+	str r2, [r0]			; write VIDC register.
+	subs r3, r3, #1
+	bne .1
+.2:
 	mov r0, #0
 	str r0, palette_pending
-.4:
 
 	LDR lr, [sp], #4
 	TEQP r9, #0    ;Restore old mode
@@ -504,15 +656,15 @@ error_handler:
 show_screen_at_vsync:
 	; Show current bank at next vsync
 	ldr r1, scr_bank
-.if 0
+	str r1, palette_pending
+.if 1
 	str r1, buffer_pending
 	; Including its associated palette
-	ldr r1, palette_block_addr
-	str r1, palette_pending
 .else
 	MOV r0, #OSByte_WriteDisplayBank
 	swi OS_Byte
 .endif
+;	ldr r1, palette_block_addr
 	mov pc, lr
 
 get_next_screen_for_writing:
@@ -617,6 +769,14 @@ grey_palette:
 	.long 0x00ffff00	; 11 10	<= layer 5
 	.long 0x00ffff00	; 11 11	<= layer 5
 .endif
+
+; ============================================================================
+
+palette_blocks_for_banks_no_adr:
+.rept Screen_Banks
+	.long 0xffffffff
+	.skip 60
+.endr
 
 palette_osword_block:
     .skip 8

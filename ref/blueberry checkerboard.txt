@@ -342,8 +342,10 @@ At z=0:
 
 At z=n:
 - x offset is Rows_Width_Pixels/2 + (x - 160) <= invariant.
-- x offset is 160 - (128 + y) * dxn
+- y offset is 160 - (128 + y) * dxn
 Where dxn is the dx value for depth n.
+
+OR x = Rows_Width_Pixels/2 - 160 + x/dxn
 
 E.g. z=100, dxn=1+100*0.05=6.
 - y = 160 - 128*6 = 160 - 768 = 
@@ -351,3 +353,7 @@ E.g. z=100, dxn=1+100*0.05=6.
 One set of world coordinates for camera & checkerboard centre (x,y,z)
 Compute camera relative checkerboard layer offsets x,y,z.
 
+=> Add a X&Y sine wave path.
+=> Setting the palette seems to be slow / glitchy...
+    - Maybe just set VIDC regs directly?
+=> Eventually move to a RM control of FIQs w/out hsync to stablise interrupts.
