@@ -11,11 +11,11 @@
 .equ Rows_Centre_Left_Edge, (Rows_Width_Pixels/2) - (Screen_Width/2)
 
 .equ Check_Num_Depths, 512
-.equ Check_Size_Pixels, 320
+.equ Check_Size_Pixels, 400
 .equ Check_Depth_dx, 3276           ; 0.05<<16
 .equ Layer_Centre_Top_Edge, (Check_Size_Pixels/2)
 
-.equ Check_Layers_per_bitplane, 4
+.equ Check_Layers_per_bitplane, 3
 .equ Check_Total_Layers, Check_Layers_per_bitplane * 2
 .equ Check_Line_Combos, (1 << Check_Layers_per_bitplane)
 
@@ -104,19 +104,29 @@ plot_check_row:
 ; R11 = buffer address.
 make_check_rows:
     str lr, [sp, #-4]!
-    mov r1, #1<<16          ; start at dx=1.0
+    mov r7, #1<<16          ; start at dx=1.0
 
     ldr r6, check_depths_dx_p
 
     ; Loop rows.
-    mov r8, #Check_Num_Depths
+    mov r12, #Check_Num_Depths
 .1:
-    str r1, [r6], #4        
+    mov r1, r7
+    str r1, [r6], #4                ; remove #4 if enabling the division below.
+
+    .if 0                           ; to store Check_Size/dx if we need it.
+    mov r0, #Check_Size_Pixels<<16
+    bl divide
+    add r6, r6, #Check_Num_Depths * 4
+    str r0, [r6], #4
+    sub r6, r6, #Check_Num_Depths * 4
+    mov r1, r7
+    .endif
 
     bl plot_check_row
-    add r1, r1, #Check_Depth_dx     ; dx+=0.05
+    add r7, r7, #Check_Depth_dx     ; dx+=0.05
 
-    subs r8, r8, #1
+    subs r12, r12, #1
     bne .1
 
     ldr pc, [sp], #4
@@ -214,7 +224,7 @@ plot_check_combo_layers:
     .if Rows_Width_Bytes == 512
     add r9, r9, r1, lsl #9              ; z * 512
     .else
-    .error "Expected Rows_Width_Bytes to be 256."
+    .error "Expected Rows_Width_Bytes to be 512."
     .endif
 
     ; Convert layer number into colour word.
@@ -520,25 +530,25 @@ plot_checks_to_screen:
 .if Check_Layers_per_bitplane == 4
     bic r14, r0, r10
     orr r14, r14, r14, lsr #1
-    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    orr r14, r14, r14, lsr #2    ; turns r0 into a mask in r14
     bic r4, r4, r14         ; mask out pixels from bottom layer
     orr r4, r4, r0          ; mask in pixels from top layer
 
     bic r14, r1, r10
     orr r14, r14, r14, lsr #1
-    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    orr r14, r14, r14, lsr #2    ; turns r1 into a mask in r14
     bic r5, r5, r14         ; mask out pixels from bottom layer
     orr r5, r5, r1          ; mask in pixels from top layer
 
     bic r14, r2, r10
     orr r14, r14, r14, lsr #1
-    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    orr r14, r14, r14, lsr #2    ; turns r2 into a mask in r14
     bic r6, r6, r14         ; mask out pixels from bottom layer
     orr r6, r6, r2          ; mask in pixels from top layer
 
     bic r14, r3, r10
     orr r14, r14, r14, lsr #1
-    orr r14, r14, r14, lsr #2    ; turns r0 into a mask
+    orr r14, r14, r14, lsr #2    ; turns r3 into a mask in r14
     bic r7, r7, r14         ; mask out pixels from bottom layer
     orr r7, r7, r3          ; mask in pixels from top layer
 .else
@@ -694,17 +704,45 @@ update_check_layers:
 .2:
     ldmia r8!, {r3-r6}           ; world x, y, z, colour
 
-    ; Make X relative
-    sub r3, r3, r0
-    add r3, r3, #Rows_Centre_Left_Edge << 16
-
-    ; Make Y relative
-    sub r4, r4, r1
-    add r4, r4, #Layer_Centre_Top_Edge << 16
-
     ; Make Z relative
     subs r5, r5, r2
     addmi r5, r5, #Check_Num_Depths<<16
+
+    ; Make X relative
+    .if 0
+    sub r3, r3, r0
+    add r3, r3, #Rows_Centre_Left_Edge << 16
+    .else
+    mov r0, r5, lsr #9          ; depth / 512
+    stmfd sp!, {r9, r14}
+    bl sine
+    ldmfd sp!, {r9, r14}
+    ; R0 = sin(2 * PI * depth / 512)
+    mov r3, r0, asl #8          ; sin(a) * 256
+    add r3, r3, #Rows_Centre_Left_Edge << 16
+    .endif
+
+    ; Make Y relative
+    .if 0
+    sub r4, r4, r1
+    add r4, r4, #Layer_Centre_Top_Edge << 16
+    .else
+    mov r0, r5, lsr #9          ; depth / 512
+    stmfd sp!, {r9, r14}
+    bl cosine
+    ; R0 = cos(2 * PI * depth / 512)       ; [s1.16]
+    mov r0, r0, asl #8          ; cos(a) * 256  [s1.24]
+    add r0, r0, #Layer_Centre_Top_Edge << 16
+
+    ldr r14, check_depths_dx_p
+    mov r9, r5, lsr #16
+    ldr r9, [r14, r9, lsl #2]       ; r9=320/dx for layer at depth  [5.16]
+    mov r0, r0, asr #8              ; 
+    mov r9, r9, asr #8              ; [5.8]
+    mul r4, r0, r9                  ; cos(a) * dx * 256               [16.16]
+
+    ldmfd sp!, {r9, r14}
+    .endif
 
     str r3, [r10, r11, lsl #2]  ; store relative x pos.
     str r4, [r12, r11, lsl #2]  ; store relative y pos.
@@ -730,6 +768,7 @@ update_check_layers:
     add r0, r0, #1
     str r0, camera_frame
 
+.if 0
     mov r1, r0
     mov r0, r0, lsl #7          ; camera_frame * 128
     bl sine
@@ -742,7 +781,7 @@ update_check_layers:
     ; R0 = sin(2 * PI * camera_frame / 512)
     mov r0, r0, lsl #8          ; sin(a) * 256
     str r0, camera_x_pos
-
+.endif
 
     ldr pc, [sp], #4
 
@@ -807,14 +846,14 @@ camera_z_pos:
     .long 0 << 16
 
 check_world_params:
-    .long 0 << 16, 0 << 16, 511 << 16, 0x00f
-    .long 0 << 16, 0 << 16, 256 << 16, 0x0f0
-    .long 0 << 16, 0 << 16, 128 << 16, 0x0ff
-    .long 0 << 16, 0 << 16, 96 << 16,  0xf00
-    .long 0 << 16, 0 << 16, 64 << 16,  0xf0f
-    .long 0 << 16, 0 << 16, 32 << 16,  0xff0
-    .long 0 << 16, 0 << 16, 16 << 16,  0x808
-    .long 0 << 16, 0 << 16, 8 << 16,   0x880
+    .long 0 << 16, 0 << 16, 448 << 16, 0x00f
+    .long 0 << 16, 0 << 16, 384 << 16, 0x0f0
+    .long 0 << 16, 0 << 16, 320 << 16, 0x0ff
+    .long 0 << 16, 0 << 16, 256 << 16,  0xf00
+    .long 0 << 16, 0 << 16, 192 << 16,  0xf0f
+    .long 0 << 16, 0 << 16, 128 << 16,  0xff0
+    .long 0 << 16, 0 << 16, 64 << 16,  0x808
+    .long 0 << 16, 0 << 16, 0 << 16,   0x880
 
 ; ========================================================================
 

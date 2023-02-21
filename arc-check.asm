@@ -15,6 +15,9 @@
 .equ _DEBUG_DEFAULT_SHOW_RASTERS, 0
 .equ _DEBUG_DEFAULT_SHOW_INFO, 1		; slow
 
+.equ _SET_DISPLAY_BANK_AT_VSYNC, 0		; as per Sarah's original framework.
+.equ _WRITE_VIDC_REGS_AT_VSYNC, 1		; to avoid flicker also faster than OS_Word.
+
 ; ============================================================================
 
 .equ Screen_Banks, 2
@@ -557,7 +560,7 @@ event_handler:
 	ADD r0, r0, #1
 	STR r0, vsync_count
 
-.if 1
+.if _SET_DISPLAY_BANK_AT_VSYNC
 	; is there a new screen buffer ready to display?
 	LDR r1, buffer_pending
 	CMP r1, #0
@@ -577,11 +580,11 @@ event_handler:
 	SWI XOS_Byte
 .endif
 
-.if 1
+.if _WRITE_VIDC_REGS_AT_VSYNC
 	; is there a palette update ready to display?
 	LDR r1, palette_pending
 	CMP r1, #0
-	.if 1
+	.if _SET_DISPLAY_BANK_AT_VSYNC	; we're already in Supervisor Mode.
 	beq .2
 	.else
 	LDMEQIA sp!, {r0-r1, pc}
@@ -657,7 +660,7 @@ show_screen_at_vsync:
 	; Show current bank at next vsync
 	ldr r1, scr_bank
 	str r1, palette_pending
-.if 1
+.if _SET_DISPLAY_BANK_AT_VSYNC
 	str r1, buffer_pending
 	; Including its associated palette
 .else

@@ -3,7 +3,7 @@
 ; ============================================================================
 
 .equ _INCLUDE_DIVIDE, 0
-.equ _USE_RECIPROCAL_TABLE, (_INCLUDE_DIVIDE && 1)
+.equ _USE_RECIPROCAL_TABLE, (_INCLUDE_DIVIDE && 0)
 
 .equ _INCLUDE_SQRT, 0
 

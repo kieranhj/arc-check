@@ -353,7 +353,15 @@ E.g. z=100, dxn=1+100*0.05=6.
 One set of world coordinates for camera & checkerboard centre (x,y,z)
 Compute camera relative checkerboard layer offsets x,y,z.
 
-=> Add a X&Y sine wave path.
+=> Add a X&Y sine wave path. - DONE KINDA...
+    - Perhaps assume camera is fixed in X & Y and just move the layers...
+    - Want X & Y to be (0,0) offset when check_layer_z_pos == 0. (ie. when camera_z_pos == world_layer_z_pos)
+    - So something like X = 123 * sin(2 * PI * check_layer_z_pos / max_depths) - will complete one wave per depth loop.
+
 => Setting the palette seems to be slow / glitchy...
-    - Maybe just set VIDC regs directly?
+    - Maybe just set VIDC regs directly? - DONE
 => Eventually move to a RM control of FIQs w/out hsync to stablise interrupts.
+    - Steve providing a 'lite' version of RM to do this.
+
+At depth N, say dxn=20, so a check on screen is 320/20=16 pixels.
+So if wanting to move that check up/down by py pixels then need to set y=160-py*320/dx
