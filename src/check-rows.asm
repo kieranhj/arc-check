@@ -713,13 +713,13 @@ update_check_layers:
     sub r3, r3, r0
     add r3, r3, #Rows_Centre_Left_Edge << 16
     .else
-    mov r0, r5, lsr #9          ; depth / 512
-    stmfd sp!, {r9, r14}
+    mov r0, r5, lsr #9              ; depth / 512
+    stmfd sp!, {r9, r14}            ; TODO: Register pressure.
     bl sine
     ldmfd sp!, {r9, r14}
-    ; R0 = sin(2 * PI * depth / 512)
-    mov r3, r0, asl #8          ; sin(a) * 256
-    add r3, r3, #Rows_Centre_Left_Edge << 16
+    ; R0 = sin(2 * PI * depth / 512)                [s1.16]
+    mov r3, r0, asl #8              ; 256 * sin(a)  [s9.16]
+    add r3, r3, #Rows_Centre_Left_Edge << 16        ; layer x (in screen pixels) = left_edge + 256 * sin(a)
     .endif
 
     ; Make Y relative
@@ -727,27 +727,29 @@ update_check_layers:
     sub r4, r4, r1
     add r4, r4, #Layer_Centre_Top_Edge << 16
     .else
-    mov r0, r5, lsr #9          ; depth / 512
-    stmfd sp!, {r9, r14}
+    mov r0, r5, lsr #9              ; depth / 512
+    stmfd sp!, {r9, r14}            ; TODO: Register pressure.
     bl cosine
-    ; R0 = cos(2 * PI * depth / 512)       ; [s1.16]
-    mov r0, r0, asl #8          ; cos(a) * 256  [s1.24]
-    add r0, r0, #Layer_Centre_Top_Edge << 16
+    ; R0 = cos(2 * PI * depth / 512)                [s1.16]
+    mov r0, r0, asl #8              ; cos(a) * 256  [s9.16]
+    add r0, r0, #Layer_Centre_Top_Edge << 16        ; y in screen pixels = top_edge + 256 * cos(a)
 
     ldr r14, check_depths_dx_p
     mov r9, r5, lsr #16
-    ldr r9, [r14, r9, lsl #2]       ; r9=320/dx for layer at depth  [5.16]
-    mov r0, r0, asr #8              ; 
-    mov r9, r9, asr #8              ; [5.8]
-    mul r4, r0, r9                  ; cos(a) * dx * 256               [16.16]
+    ldr r9, [r14, r9, lsl #2]       ; r9=dx for layer at depth        [5.16]
+    mov r0, r0, asr #8              ; [s9.8]
+    mov r9, r9, asr #8              ; [s5.8]
+    mul r4, r0, r9                  ; layer y (in check pixels) = dx * (160 + 256 * cos(a))  [s14.16]
 
     ldmfd sp!, {r9, r14}
     .endif
 
-    str r3, [r10, r11, lsl #2]  ; store relative x pos.
-    str r4, [r12, r11, lsl #2]  ; store relative y pos.
-    str r5, [r14, r11, lsl #2]  ; store relative z pos.
-    str r6, [r7, r11, lsl #2]   ; store relative colour.
+    ; TODO: Fade colour based on depth.
+
+    str r3, [r10, r11, lsl #2]      ; store relative x pos.
+    str r4, [r12, r11, lsl #2]      ; store relative y pos.
+    str r5, [r14, r11, lsl #2]      ; store relative z pos.
+    str r6, [r7, r11, lsl #2]       ; store relative colour.
 
     add r9, r9, #1
     cmp r9, #Check_Total_Layers

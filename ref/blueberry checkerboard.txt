@@ -264,7 +264,7 @@ STEPS
     - Should save 18% according to calculations...
 7. Performance timings at N=4/5/6? - DONE
 8. Add music player. - DONE
-9. RasterMan path ---v
+9. RasterMan path ---X
     - Implement double buffering of generated layers.
     - Add RasterMan to select screen buffer address on a per scanline basis.
     - Optimise RasterMan to minimal IRQ overhead as necessary.
@@ -274,14 +274,21 @@ STEPS
     - Merge two 'playfields' of combos per scanline. - DONE
 11. Try setting check size to 512 - does this make everything simpler?
     - Didn't go to plan. ;)
+    - Leave this as configurable, seems to work nicely at 400.
 11a. Need a scheme to enable setting Y value as line offset not V [i.e. 0-320 in check] per layer.
     - Also (0,0) to be centre of the screen would be easier... - DONE
     => Set camera x,y,z as pixel coordinates [0-319 across square at depth 0] and depth [0-511].
-11b. Need to fix colour handling to ensure world colours stay constant.
+11b. Need to fix colour handling to ensure world colours stay constant. - DONE
+    => Setting the palette seems to be slow / glitchy...
+        - Maybe just set VIDC regs directly? - DONE
+    => Eventually move to a RM control of FIQs w/out hsync to stablise interrupts.
+        - Steve providing a 'lite' version of RM to do this.
 12. Some sort of sequencing (Rocket?!?!) including swapping between checks and text.
     (Consider some sort of trick starting with 3/4/5x layers but writing over the top of it,
     before switching to more layers that can only be done with RM.)
 12a. Try 2x 4 layers version for ARM250. - DONE
+    - Still need some optimisation for when music gets busier.
+    - Or triple buffer?
 13. Win!
 
 Another performance test to try:
@@ -335,33 +342,15 @@ checkerboard squares are at the maximum size (320 pixels).
 And (x,y) are in pixels and z represents our depth values [0-511].
 
 To begin assume all checkerboards are locked to (0,0,dn)
-
-At z=0:
-- x offset for layer is Rows_Width_Pixels/2 + (x - 160) pixels
-- y offset for layer is 160 - (128 + y) pixels
-
-At z=n:
-- x offset is Rows_Width_Pixels/2 + (x - 160) <= invariant.
-- y offset is 160 - (128 + y) * dxn
-Where dxn is the dx value for depth n.
-
-OR x = Rows_Width_Pixels/2 - 160 + x/dxn
-
-E.g. z=100, dxn=1+100*0.05=6.
-- y = 160 - 128*6 = 160 - 768 = 
-
 One set of world coordinates for camera & checkerboard centre (x,y,z)
 Compute camera relative checkerboard layer offsets x,y,z.
+=> Actually this doesn't work because our layer X offset is in screen pixels,
+   whilst layer Y offset is in check pixels.
+   We could do this but would have to divide the X offset by dx for layer.
 
 => Add a X&Y sine wave path. - DONE KINDA...
     - Perhaps assume camera is fixed in X & Y and just move the layers...
     - Want X & Y to be (0,0) offset when check_layer_z_pos == 0. (ie. when camera_z_pos == world_layer_z_pos)
     - So something like X = 123 * sin(2 * PI * check_layer_z_pos / max_depths) - will complete one wave per depth loop.
 
-=> Setting the palette seems to be slow / glitchy...
-    - Maybe just set VIDC regs directly? - DONE
-=> Eventually move to a RM control of FIQs w/out hsync to stablise interrupts.
-    - Steve providing a 'lite' version of RM to do this.
-
-At depth N, say dxn=20, so a check on screen is 320/20=16 pixels.
-So if wanting to move that check up/down by py pixels then need to set y=160-py*320/dx
+If layers are 64 units apart, Y = check_size * sin(2 * PI * depth / 512 * 2) ?
