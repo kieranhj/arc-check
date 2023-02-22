@@ -15,7 +15,7 @@
 .equ Check_Depth_dx, 3276           ; 0.05<<16
 .equ Layer_Centre_Top_Edge, (Check_Size_Pixels/2)
 
-.equ Check_Layers_per_bitplane, 3
+.equ Check_Layers_per_bitplane, 4
 .equ Check_Total_Layers, Check_Layers_per_bitplane * 2
 .equ Check_Line_Combos, (1 << Check_Layers_per_bitplane)
 
@@ -153,24 +153,6 @@ check_rows_init:
 
 plot_check_combos:
     str lr, [sp, #-4]!
-    ldr r12, check_bitplane_0_line_combos_p
-
-    ; Blank all line combos.
-    mov r0, #0
-    mov r1, r0
-    mov r2, r0
-    mov r3, r0
-    mov r4, r0
-    mov r5, r0
-    mov r6, r0
-    mov r7, r0
-    mov r11, #Check_Line_Combos * 2
-.1:
-.rept Screen_Stride / 32
-    stmia r12!, {r0-r7}
-.endr
-    subs r11, r11, #1
-    bne .1
 
     ldr r12, check_bitplane_0_line_combos_p
     adr r4, check_layer_x_pos
@@ -305,7 +287,7 @@ calculate_scanline_bitmasks:
     
     ; 1x register for scanline counter - combine ?
     ; 1x register for bitmask           |
-    mov r14, #0                 ; bitmask & scanline counter!!
+    mov r14, #0                      ; bitmask & scanline counter!!
     subs r0, r0, r6, lsl #7          ; y -= 128*dx
     bpl .1
 .11:
@@ -704,10 +686,6 @@ update_check_layers:
 .2:
     ldmia r8!, {r3-r6}           ; world x, y, z, colour
 
-    ; Make Z relative
-    subs r5, r5, r2
-    addmi r5, r5, #Check_Num_Depths<<16
-
     ; Make X relative
     .if 0
     sub r3, r3, r0
@@ -716,10 +694,14 @@ update_check_layers:
     mov r0, r5, lsr #9              ; depth / 512
     stmfd sp!, {r9, r14}            ; TODO: Register pressure.
     bl sine
-    ldmfd sp!, {r9, r14}
     ; R0 = sin(2 * PI * depth / 512)                [s1.16]
-    mov r3, r0, asl #8              ; 256 * sin(a)  [s9.16]
-    add r3, r3, #Rows_Centre_Left_Edge << 16        ; layer x (in screen pixels) = left_edge + 256 * sin(a)
+    mov r9, #192
+    mul r3, r0, r9
+    ldr r0, camera_x_pos
+    sub r3, r3, r0
+    add r3, r3, #Rows_Centre_Left_Edge << 16        ; layer x (in screen pixels) = left_edge + 192 * sin(a)
+
+    ldmfd sp!, {r9, r14}
     .endif
 
     ; Make Y relative
@@ -727,19 +709,26 @@ update_check_layers:
     sub r4, r4, r1
     add r4, r4, #Layer_Centre_Top_Edge << 16
     .else
-    mov r0, r5, lsr #9              ; depth / 512
+    mov r0, r5, lsr #7              ; depth / 512
     stmfd sp!, {r9, r14}            ; TODO: Register pressure.
     bl cosine
     ; R0 = cos(2 * PI * depth / 512)                [s1.16]
-    mov r0, r0, asl #8              ; cos(a) * 256  [s9.16]
-    add r0, r0, #Layer_Centre_Top_Edge << 16        ; y in screen pixels = top_edge + 256 * cos(a)
+    mov r9, #192
+    mul r0, r9, r0
+    add r0, r0, r1
+    add r0, r0, #Layer_Centre_Top_Edge << 16        ; y in screen pixels = top_edge + 192 * cos(a)
 
+    ; Make Z relative
+    subs r5, r5, r2
+    addmi r5, r5, #Check_Num_Depths<<16
+
+    ; Convert screen pixel offset into check pixel offset at depth.
     ldr r14, check_depths_dx_p
     mov r9, r5, lsr #16
     ldr r9, [r14, r9, lsl #2]       ; r9=dx for layer at depth        [5.16]
     mov r0, r0, asr #8              ; [s9.8]
     mov r9, r9, asr #8              ; [s5.8]
-    mul r4, r0, r9                  ; layer y (in check pixels) = dx * (160 + 256 * cos(a))  [s14.16]
+    mul r4, r0, r9                  ; layer y (in check pixels) = dxn * sy  [s14.16]
 
     ldmfd sp!, {r9, r14}
     .endif
@@ -767,21 +756,23 @@ update_check_layers:
     str r2, camera_z_pos
 
     ldr r0, camera_frame
-    add r0, r0, #1
+    add r0, r0, #1<<16
     str r0, camera_frame
 
-.if 0
+.if 1
     mov r1, r0
-    mov r0, r0, lsl #7          ; camera_frame * 128
-    bl sine
+    mov r0, r0, lsr #10          ; camera_frame / 512
+    bl cosine
     ; R0 = sin(2 * PI * camera_frame / 512)
-    mov r0, r0, lsl #8          ; sin(a) * 256
+    mov r9, #160
+    mul r0, r9, r0
     str r0, camera_y_pos
 
-    mov r0, r1, lsl #7          ; camera_frame * 128
+    mov r0, r1, lsr #10          ; camera_frame / 512
     bl sine
     ; R0 = sin(2 * PI * camera_frame / 512)
-    mov r0, r0, lsl #8          ; sin(a) * 256
+    mov r9, #160
+    mul r0, r9, r0
     str r0, camera_x_pos
 .endif
 
@@ -852,9 +843,9 @@ check_world_params:
     .long 0 << 16, 0 << 16, 384 << 16, 0x0f0
     .long 0 << 16, 0 << 16, 320 << 16, 0x0ff
     .long 0 << 16, 0 << 16, 256 << 16,  0xf00
-    .long 0 << 16, 0 << 16, 192 << 16,  0xf0f
-    .long 0 << 16, 0 << 16, 128 << 16,  0xff0
-    .long 0 << 16, 0 << 16, 64 << 16,  0x808
+    .long 0 << 16, 0 << 16, 128 << 16,  0xf0f
+    .long 0 << 16, 0 << 16, 64 << 16,  0xff0
+    .long 0 << 16, 0 << 16, 32 << 16,  0x808
     .long 0 << 16, 0 << 16, 0 << 16,   0x880
 
 ; ========================================================================

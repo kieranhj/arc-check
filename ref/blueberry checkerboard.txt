@@ -354,3 +354,23 @@ Compute camera relative checkerboard layer offsets x,y,z.
     - So something like X = 123 * sin(2 * PI * check_layer_z_pos / max_depths) - will complete one wave per depth loop.
 
 If layers are 64 units apart, Y = check_size * sin(2 * PI * depth / 512 * 2) ?
+
+Optimisations?
+- Dominated by plot_checks_to_screen, particularly with 4 layers per bitplane.
+    => Not a lot that can be done here, unless we can reduce the extra 4x4 cycles per word
+       to generate the mask in the 4 layer case.
+- Next is plot_check_combos.
+    => Remove blanking of combo lines! - DONE
+    => Otherwise already using optimised unrolled plot functions per layer.
+- Last is calculate_scanline_bitmasks.
+    => End up looping over the 256 scanline table twice when using 4 layers per bitplane
+       as we don't have enough registers to hold y+=dx * 8, plus scanline counter, plus bitmask, plus table ptr.
+    => Already merging scanline counter + bitmask into high and low short words.
+    => 
+    ; TO PONDER: In 6502 we'd speed things up by using self-modified code to write the
+    ;            constant value as #imm inside the loop. In this case values of dx for
+    ;            each layer. This wouldn't be any faster in ARM but could reduce
+    ;            register pressure if we free up the ones used for constant dx values.
+    ;            Would probably need 3x add instructions? We know the dx values are of
+    ;            the form [5.16]. Would still be quicker than a second loop...
+
