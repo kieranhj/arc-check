@@ -270,7 +270,7 @@ calculate_scanline_bitmasks:
     adr r12, check_layer_z_pos
     ldr r14, check_depths_dx_p
 
-    ldmia r12, {r6-r11}            ; r6-r11 = zpos
+    ldmia r12!, {r6-r11}            ; r6-r11 = zpos
 
     mov r6, r6, lsr #16
     ldr r6, [r14, r6, lsl #2]      ; r6=dx for layer 0 at zpos
@@ -300,6 +300,15 @@ calculate_scanline_bitmasks:
     eorge r14, r14, #1 << 0
     bge .1
 
+.if Check_Layers_per_bitplane == 4
+    ; SELF MOD! Poke R6 constant into loop...
+    strb r6, .60
+    mov r6, r6, lsr #8
+    strb r6, .61
+    mov r6, r6, lsr #8
+    strb r6, .62
+.endif
+
     subs r1, r1, r7, lsl #7          ; y -= 128*dx
     bpl .2
 .12:
@@ -311,6 +320,15 @@ calculate_scanline_bitmasks:
     subge r1, r1, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 1
     bge .2
+
+.if Check_Layers_per_bitplane == 4
+    ; SELF MOD! Poke R7 constant into loop...
+    strb r7, .70
+    mov r7, r7, lsr #8
+    strb r7, .71
+    mov r7, r7, lsr #8
+    strb r7, .72
+.endif
 
     subs r2, r2, r8, lsl #7          ; y -= 128*dx
     bpl .3
@@ -324,6 +342,15 @@ calculate_scanline_bitmasks:
     eorge r14, r14, #1 << 2
     bge .3
 
+.if Check_Layers_per_bitplane == 4
+    ; SELF MOD! Poke R8 constant into loop...
+    strb r8, .80
+    mov r8, r8, lsr #8
+    strb r8, .81
+    mov r8, r8, lsr #8
+    strb r8, .82
+.endif
+
     subs r3, r3, r9, lsl #7          ; y -= 128*dx
     bpl .4
 .14:
@@ -335,6 +362,15 @@ calculate_scanline_bitmasks:
     subge r3, r3, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 3
     bge .4
+
+.if Check_Layers_per_bitplane == 4
+    ; SELF MOD! Poke R9 constant into loop...
+    strb r9, .90
+    mov r9, r9, lsr #8
+    strb r9, .91
+    mov r9, r9, lsr #8
+    strb r9, .92
+.endif
 
     subs r4, r4, r10, lsl #7          ; y -= 128*dx
     bpl .5
@@ -360,6 +396,47 @@ calculate_scanline_bitmasks:
     eorge r14, r14, #1 << 5
     bge .6
 
+.if Check_Layers_per_bitplane == 4
+    ; Need 2x registers for z pos.
+    ldmia r12, {r8-r9}              ; r8-r9 = zpos
+
+    ; Can trash R12 now!
+    ldr r12, check_depths_dx_p
+
+    mov r8, r8, lsr #16
+    ldr r8, [r12, r8, lsl #2]       ; r8=dx for layer 6 at zpos
+    mov r9, r9, lsr #16
+    ldr r9, [r12, r9, lsl #2]       ; r9=dx for layer 7 at zpos
+
+    ; Need 2x registers for y pos.
+    adr r12, check_layer_y_pos + 6*4
+    ldmia r12, {r6-r7}              ; r6-r7 = ypos
+
+    subs r6, r6, r8, lsl #7          ; y -= 128*dx
+    bpl .8
+.18:
+    adds r6, r6, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 6
+    bmi .18
+.8:
+    cmp r6, #Check_Size_Pixels<<16
+    subge r6, r6, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 6
+    bge .8
+
+    subs r7, r7, r9, lsl #7          ; y -= 128*dx
+    bpl .9
+.19:
+    adds r7, r7, #Check_Size_Pixels<<16  
+    eor r14, r14, #1 << 7
+    bmi .19
+.9:
+    cmp r7, #Check_Size_Pixels<<16
+    subge r7, r7, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 7
+    bge .9
+.endif
+
     ; 1x register for address to write bitmask.
     ldr r12, check_scanline_bitmask_p
 
@@ -368,22 +445,58 @@ calculate_scanline_bitmasks:
     str r14, [r12], #4           ; store parity bitmask to table.
 
     ; Update all the running y positions per scanline...
+.if Check_Layers_per_bitplane == 4
+    .60:
+    add r0, r0, #0xff << 0
+    .61:
+    add r0, r0, #0xff << 8
+    .62:
+    add r0, r0, #0xff << 16
+.else
     add r0, r0, r6              ; y_pos += dx
+.endif
     cmp r0, #Check_Size_Pixels<<16
     subge r0, r0, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 0
 
+.if Check_Layers_per_bitplane == 4
+    .70:
+    add r1, r1, #0xff << 0
+    .71:
+    add r1, r1, #0xff << 8
+    .72:
+    add r1, r1, #0xff << 16
+.else
     add r1, r1, r7              ; y_pos += dx
+.endif
     cmp r1, #Check_Size_Pixels<<16
     subge r1, r1, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 1
 
+.if Check_Layers_per_bitplane == 4
+    .80:
+    add r2, r2, #0xff << 0
+    .81:
+    add r2, r2, #0xff << 8
+    .82:
+    add r2, r2, #0xff << 16
+.else
     add r2, r2, r8              ; y_pos += dx
+.endif
     cmp r2, #Check_Size_Pixels<<16
     subge r2, r2, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 2
 
+.if Check_Layers_per_bitplane == 4
+    .90:
+    add r3, r3, #0xff << 0
+    .91:
+    add r3, r3, #0xff << 8
+    .92:
+    add r3, r3, #0xff << 16
+.else
     add r3, r3, r9              ; y_pos += dx
+.endif
     cmp r3, #Check_Size_Pixels<<16
     subge r3, r3, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 3
@@ -398,79 +511,22 @@ calculate_scanline_bitmasks:
     subge r5, r5, #Check_Size_Pixels<<16
     eorge r14, r14, #1 << 5
 
+.if Check_Layers_per_bitplane == 4
+    add r6, r6, r8              ; y_pos += dx
+    cmp r6, #Check_Size_Pixels<<16
+    subge r6, r6, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 6
+
+    add r7, r7, r9              ; y_pos += dx
+    cmp r7, #Check_Size_Pixels<<16
+    subge r7, r7, #Check_Size_Pixels<<16
+    eorge r14, r14, #1 << 7
+.endif
+
     ; Next scanline.
     add r14, r14, #1<<16
     cmp r14, #Screen_Height<<16
     blt .7
-
-; TODO: Can we do better than this? :(
-.if Check_Layers_per_bitplane == 4
-    adr r0, check_layer_z_pos + 6*4
-    ldr r1, check_depths_dx_p
-
-    ; Need 2x registers for z pos.
-    ldmia r0, {r6-r7}            ; r6-r7 = zpos
-    mov r6, r6, lsr #16
-    ldr r6, [r1, r6, lsl #2]      ; r6=dx for layer 6 at zpos
-    mov r7, r7, lsr #16
-    ldr r7, [r1, r7, lsl #2]      ; r7=dx for layer 7 at zpos
-
-    ; Need 2x registers for y pos.
-    adr r14, check_layer_y_pos + 6*4
-    ldmia r14, {r0-r1}          ; r0-r1 = ypos
-
-    ; 1x register for bitmask           |
-    mov r14, #0                 ; bitmask
-    subs r0, r0, r6, lsl #7          ; y -= 128*dx
-    bpl .8
-.18:
-    adds r0, r0, #Check_Size_Pixels<<16  
-    eor r14, r14, #1 << 6
-    bmi .18
-.8:
-    cmp r0, #Check_Size_Pixels<<16
-    subge r0, r0, #Check_Size_Pixels<<16
-    eorge r14, r14, #1 << 6
-    bge .8
-
-    subs r1, r1, r7, lsl #7          ; y -= 128*dx
-    bpl .9
-.19:
-    adds r1, r1, #Check_Size_Pixels<<16  
-    eor r14, r14, #1 << 7
-    bmi .19
-.9:
-    cmp r1, #Check_Size_Pixels<<16
-    subge r1, r1, #Check_Size_Pixels<<16
-    eorge r14, r14, #1 << 7
-    bge .9
-
-    ; 1x register for address to write bitmask.
-    ldr r12, check_scanline_bitmask_p
-
-    ; 1x register for scanline counter.
-    mov r11, #0
-.10:
-    ldr r10, [r12]
-    orr r10, r10, r14
-    str r10, [r12], #4           ; store parity bitmask to table.
-
-    ; Update all the running y positions per scanline...
-    add r0, r0, r6              ; y_pos += dx
-    cmp r0, #Check_Size_Pixels<<16
-    subge r0, r0, #Check_Size_Pixels<<16
-    eorge r14, r14, #1 << 6
-
-    add r1, r1, r7              ; y_pos += dx
-    cmp r1, #Check_Size_Pixels<<16
-    subge r1, r1, #Check_Size_Pixels<<16
-    eorge r14, r14, #1 << 7
-
-    ; Next scanline.
-    add r11, r11, #1
-    cmp r11, #Screen_Height
-    blt .10
-.endif
 
     ldr pc, [sp], #4
 
