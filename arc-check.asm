@@ -7,6 +7,7 @@
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 0
 .equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
+.equ _ENABLE_LUAPOD, 1
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
 .equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
@@ -141,6 +142,9 @@ main:
 	.if _ENABLE_ROCKET
 	bl rocket_init
 	.endif
+    .if _ENABLE_LUAPOD
+    bl luapod_init
+    .endif
 
 	; Start with bank 1
 	mov r1, #1
@@ -275,6 +279,11 @@ main_loop_skip_tick:
 	str r0, vsync_delta
 	; R0 = vsync delta since last frame.
 
+    .if _ENABLE_LUAPOD
+    mov r0, r2
+    bl luapod_set_sync_time
+    .endif
+
 	; ========================================================================
 	; DRAW
 	; ========================================================================
@@ -312,8 +321,10 @@ main_loop_skip_tick:
 
 	b main_loop
 
+.if _ENABLE_MUSIC
 music_data_p:
 	.long music_data_no_adr
+.endif
 
 error_noscreenmem:
 	.long 0
@@ -388,6 +399,11 @@ debug_controls:
 	ldrb r0, debug_play_pause
 	eor r0, r0, #1
 	strb r0, debug_play_pause
+
+    .if _ENABLE_LUAPOD
+    bl luapod_set_is_playing
+    .endif
+
 	.1:
 	strb r1, debug_debounce_space
 
@@ -730,6 +746,10 @@ screen_addr:
 
 .if _ENABLE_ROCKET
 .include "lib/rocket.asm"
+.endif
+
+.if _ENABLE_LUAPOD
+.include "src/luapod.asm"
 .endif
 
 ; ============================================================================

@@ -684,27 +684,30 @@ palette_blocks_p:
 update_check_layers:
     str lr, [sp, #-4]!
 
+.if _ENABLE_LUAPOD
     ; TODO: A less long-hand way of achieving this.
-    .if _ENABLE_ROCKET
     .set _layer, 0
     .rept Check_Total_Layers
     .set _track_base, _layer * 4
     mov r0, #_track_base + 0
-    bl rocket_sync_get_val
-    str r1, check_world_x_pos + _track_base
+    bl luapod_get_track_val
+    str r1, check_layer_x_pos + _track_base
 
     mov r0, #_track_base + 1
-    bl rocket_sync_get_val
-    str r1, check_world_y_pos + _track_base
+    bl luapod_get_track_val
+    str r1, check_layer_y_pos + _track_base
 
     mov r0, #_track_base + 2
-    bl rocket_sync_get_val
-    str r1, check_world_z_pos + _track_base
+    bl luapod_get_track_val
+    str r1, check_layer_z_pos + _track_base
 
-    ; TODO: Layer colour in _track_base + 3
+    mov r0, #_track_base + 3
+    bl luapod_get_track_val
+    str r1, check_layer_colour + _track_base
     .set _layer, _layer + 1
     .endr
-    .endif
+
+.else
 
     ; Convert world coordinates to camera relative positions.
     ; TODO: Use vector lib?
@@ -815,7 +818,7 @@ update_check_layers:
     add r0, r0, #1<<16
     str r0, camera_frame
 
-.if 1
+    .if 1
     mov r1, r0
     mov r0, r0, lsr #10          ; camera_frame / 512
     bl cosine
@@ -830,6 +833,7 @@ update_check_layers:
     mov r9, #160
     mul r0, r9, r0
     str r0, camera_x_pos
+    .endif
 .endif
 
     ldr pc, [sp], #4
