@@ -189,6 +189,11 @@ main:
 
 main_loop:
 
+    .if _ENABLE_LUAPOD
+    ldr r0, frame_counter
+    bl luapod_set_sync_time
+    .endif
+
 	.if _DEBUG
 	bl debug_controls
 	.endif
@@ -238,6 +243,11 @@ main_loop:
 
 	bl calculate_scanline_bitmasks
 
+    ; Update frame counter.
+    ldr r0, frame_counter
+    add r0, r0, #1
+    str r0, frame_counter
+
 main_loop_skip_tick:
 
 	; ========================================================================
@@ -278,11 +288,6 @@ main_loop_skip_tick:
 	.endif
 	str r0, vsync_delta
 	; R0 = vsync delta since last frame.
-
-    .if _ENABLE_LUAPOD
-    mov r0, r2
-    bl luapod_set_sync_time
-    .endif
 
 	; ========================================================================
 	; DRAW
@@ -384,6 +389,8 @@ debug_string:
 	.skip 16
 
 debug_controls:
+	str lr, [sp, #-4]!
+
 	MOV r0, #OSByte_ReadKey
 	MOV r1, #IKey_Space
 	MOV r2, #0xff
@@ -470,7 +477,7 @@ debug_controls:
 	.5:
 	strb r1, debug_debounce_r
 
-	mov pc, lr
+	ldr pc, [sp], #4
 
 debug_debounce_space:
 	.byte 0
@@ -720,6 +727,9 @@ last_vsync:
 
 vsync_delta:
 	.long 0
+
+frame_counter:
+    .long 0
 
 buffer_pending:
 	.long 0				; screen bank number to display at vsync.

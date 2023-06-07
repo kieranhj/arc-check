@@ -374,3 +374,50 @@ Optimisations?
     ;            Would probably need 3x add instructions? We know the dx values are of
     ;            the form [5.16]. Would still be quicker than a second loop...
 
+
+Checkerboard sequence is hard, yo!
+~~~
+Monochrome colours look good, with one accent colour!
+
+- [Lua] Support more layers but only draw N in front of the camera?
+- [Engine + Lua] Support some layers not visible?
+- [Lua] Export per frame data
+- [Engine] Consume per frame data
+- [Engine] Ability to switch between different scenes
+- [Engine] Scenes with text
+- [?] Some sort of sequence of scenes
+
+Some scenes (mostly nicked from Blueberry):
+
+- Fly through of regularly spaced layers, hitting the holes not the squares.
+- Tunnel effect, backwards & forwards.
+- Flying towards the mesh (big distance from tightly grouped layers).
+    - Perhaps then into a tunnel?
+- Splat the layers down into a pile.
+
+TODO: Watch checkerboard demos again for inspo.
+TODO: Think about how this might work from a control POV.
+
+Rather than trying to wrangle all the layers separately,
+perhaps have notion of functions for camera path and layer path?
+Function to define layer spacing.
+Function to define layer colour graduation.
+Then sequence becomes a series of setting functions.
+
+t = frames()
+
+camera_position (x,y,z) = some_function (t)
+
+; Want to define all layers in front of the camera.
+; Assume simplest case of layers that are static.
+; Function returns what?
+; Can step from camera Z forward for each depth?
+
+layer_position (x,y) = some_function (wz)
+distance_to_next_layer = some_function (wz)
+
+=> operate in world space.
+
+Curiously, if we don't update the entry in a global table each frame,
+then it reverts to its previously initialised value!?
+=> some sort of garbage collection, weak reference thing?
