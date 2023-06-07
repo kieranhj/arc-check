@@ -42,7 +42,9 @@
 .macro SET_BORDER rgb
 	.if _DEBUG_RASTERS
 	mov r4, #\rgb
-	bl palette_set_border
+	ldrb r0, debug_show_rasters
+	cmp r0, #0
+	blne palette_set_border
 	.endif
 .endm
 
@@ -313,7 +315,7 @@ main_loop_skip_tick:
 	SET_BORDER 0xffff00	; cyan
 
 	; show debug
-	.if _DEBUG && 0
+	.if _DEBUG
 	bl debug_write_vsync_count
 	.endif
 
@@ -346,11 +348,7 @@ debug_write_vsync_count:
 	str lr, [sp, #-4]!
 	swi OS_WriteI+30			; home text cursor
 
-.if _ENABLE_ROCKET && 0
-	bl rocket_get_sync_time
-.else
-	ldr r0, vsync_delta			; or vsync_count
-.endif
+    ldr r0, frame_counter
 	adr r1, debug_string
 	mov r2, #8
 	swi OS_ConvertHex4
@@ -358,7 +356,7 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 	
-.if _ENABLE_MUSIC
+.if _ENABLE_MUSIC && 0
 	swi OS_WriteI+32			; ' '
 
     ; read current tracker position
@@ -407,10 +405,17 @@ debug_controls:
 	eor r0, r0, #1
 	strb r0, debug_play_pause
 
-    .if _ENABLE_LUAPOD
-    bl luapod_set_is_playing
+    .if _ENABLE_MUSIC
+    cmp r0, #0
+    swieq QTM_Pause			    ; pause
+    swine QTM_Start             ; play
     .endif
 
+    .if _ENABLE_LUAPOD
+    mov r3, r1
+    bl luapod_set_is_playing
+    mov r1, r3
+    .endif
 	.1:
 	strb r1, debug_debounce_space
 
@@ -459,7 +464,6 @@ debug_controls:
 	.4:
 	strb r1, debug_debounce_d
 
-
 	; Toggle rasters
 	MOV r0, #OSByte_ReadKey
 	MOV r1, #IKey_R
@@ -477,6 +481,29 @@ debug_controls:
 	.5:
 	strb r1, debug_debounce_r
 
+	MOV r0, #OSByte_ReadKey
+	MOV r1, #IKey_A
+	MOV r2, #0xff
+	SWI OS_Byte
+	CMP r1, #0xff
+	CMPEQ r2, #0xff
+	BNE .6 ; not pressed
+	ldrb r0, debug_debounce_a
+	cmp r0, #0
+	bne .6 ; still pressed
+
+    ; Start Again.
+    mov r0, #0
+    str r0, frame_counter
+
+    .if _ENABLE_MUSIC
+    mov r1, #0
+	swi QTM_Pos
+    .endif
+
+	.6:
+	strb r1, debug_debounce_a
+
 	ldr pc, [sp], #4
 
 debug_debounce_space:
@@ -491,6 +518,9 @@ debug_debounce_d:
 debug_debounce_r:
 	.byte 0
 
+debug_debounce_a:
+	.byte 0
+
 debug_play_pause:
 	.byte _DEBUG_DEFAULT_PLAY_PAUSE
 
@@ -503,6 +533,7 @@ debug_show_info:
 debug_show_rasters:
 	.byte _DEBUG_DEFAULT_SHOW_RASTERS
 
+	.p2align 2
 d_StopOnFrame:
 	.long _DEBUG_STOP_ON_FRAME
 .endif

@@ -27,7 +27,7 @@ function makeWorldLayers(zStart, zStep)
 end
 
 function initLayers()
-    io.write("initLayers()\n")
+    io.write(string.format("initLayers(%d)\n", frames()))
 
     worldLayers[1]={x=0.0,y=0.0,z=0.0,c={r=0x8,g=0x8,b=0x8}}
     worldLayers[2]={x=0.0,y=0.0,z=64.0,c={r=0xf,g=0x8,b=0x8}}
@@ -135,6 +135,7 @@ function updateWorldLayers(layerPathFn, layerDistFn)
             w.x = pos.x
             w.y = pos.y
             w.z = z * 1.0
+            c = w.c
 
             i=i+1
         end
