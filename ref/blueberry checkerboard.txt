@@ -378,13 +378,18 @@ Optimisations?
 Checkerboard sequence is hard, yo!
 ~~~
 Monochrome colours look good, with one accent colour!
+Invert colours (so background is bright with layers fading to black at the front)
+Flash the accent colour in sync.
+Flash all the colours in sync.
 
 Some scenes (mostly nicked from Blueberry):
 - Fly through of regularly spaced layers, hitting the holes not the squares.
 - Tunnel effect, backwards & forwards.
 - Flying towards the mesh (big distance from tightly grouped layers).
     - Perhaps then into a tunnel?
+    - Hover over the grid.
 - Splat the layers down into a pile.
+- Move layers one by one.
 
 1) Camera on a path, layers on/relative to that path. [Tunnel FX]
 2) Camera on a path, layers fixed in world space [Grid]
@@ -421,19 +426,18 @@ TODO:
 
 - [Engine] Debug controls for resetting frame counter, debug info, toggle rasters. - DONE
 - [Lua] Tidy up the script and decide on exact control / configuration flow.
-- [Lua] Set colours whilst generating layers.
-- [Lua] Support for palette sets? [back colour, front colour, fade distance?]
-- [Lua] Support global palette fade out / in
+- [Lua] Set colours whilst generating layers. - DONE
+- [Lua] Support for palette sets? [back colour, front colour, fade distance?] - STARTED
+- [Lua] Support global palette fade out / in.
 - [Lua] Support more layers but only draw N in front of the camera? - DONE SORTA?
 - [Engine + Lua] Support some layers not visible?
     - Just plot in black at max distance?
 - [Lua] Export per frame data
     - 8x layers x 8 bytes (x,y,z,c) x 50Hz x 180s = 64b / frame = 3200 b/s = 562.5k :)
 - [Engine] Consume per frame data
-- [Engine] Ability to switch between different scenes
+- [Engine] Ability to switch between different scenes (if needed?)
 - [Engine] Scenes with text? [Or just hack this in at the end.]
 - [Engine] Drop furthest 2x layers at runtime for ARM2 version? [Not needed for party version.]
-- [?] Some sort of sequence of scenes
 - [Music] Beg someone to compose a tune in extra quick time!
     (Rhino, ne7 or use Hoff's if he doesn't do Rose thing?)
 
@@ -441,11 +445,13 @@ sequence
 ~~
 
 - Start with mesh screen far away, fade into view.
-    - Straight line or spiralling camera?
+    - Straight line or spiralling camera? Lissajous!
 - Go through straight tunnel at speed for a bit.
 - Give the tunnel some curves.
 - Mess with the distance between layers (longer, shorter)
 - Mess with the speed of the camera.
 - Converge all the layers close together and spiral camera into a square.
 - Stop short and reverse rapidly out of the entire tunnel back to the start.
+- Fade out?
 
+- <Another sequence with individual layers moving>

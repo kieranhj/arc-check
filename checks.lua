@@ -11,20 +11,23 @@ checkSizePixels=400
 dzDelta=0.05
 maxDepths=512
 
+framesPerRow=6
+rowsPerPattern=64
+framesPerBeat=48
+
 leftEdge=(rowWidthPixels/2)-(screenWidth/2)
 topEdge=checkSizePixels/2
 
 worldLayers={}
 cameraLayers={}
 
-function makeWorldLayers(zStart, zStep)
-    for i=1,maxLayers do
-        w=worldLayers[i]
-        w.x=0.0
-        w.y=0.0
-        w.z=zStart + (i-1)*zStep
-    end
-end
+BLACK={r=0,g=0,b=0}
+WHITE={r=0xf,g=0xf,b=0xf}
+
+primaryColour={r=0xf,g=0x8,b=0x8}
+secondaryColour={r=0x8,g=0x8,b=0x8}
+highlightColour={r=0xf,g=0xf,b=0xf}
+
 
 function initLayers()
     io.write(string.format("initLayers(%d)\n", frames()))
@@ -37,9 +40,7 @@ function initLayers()
     worldLayers[6]={x=0.0,y=0.0,z=320.0,c={r=0xf,g=0x8,b=0x8}}
     worldLayers[7]={x=0.0,y=0.0,z=384.0,c={r=0xf,g=0x8,b=0x8}}
     worldLayers[8]={x=0.0,y=0.0,z=448.0,c={r=0x8,g=0x8,b=0x8}}
-
-    --- makeWorldLayers(0.0,32.0)
-
+    
     cameraLayers[1]={x=0.0,y=0.0,z=0.0,c={r=0x0,g=0x0,b=0x0}}
     cameraLayers[2]={x=0.0,y=0.0,z=0.0,c={r=0x0,g=0x0,b=0x0}}
     cameraLayers[3]={x=0.0,y=0.0,z=0.0,c={r=0x0,g=0x0,b=0x0}}
@@ -62,56 +63,75 @@ function sortCameraLayers()
         -- TODO: or don't draw it if behind camera!
         c.z=(w.z - camPos.z) % maxDepths
 
-        if (c.z < 0) then c.z=c.z+maxDepths end
+        if (c.z < 0) then
+            io.write(string.format("Layer %d behind the camera!z\n", i))
+            c.z=c.z+maxDepths
+        end
 
         -- layer x position specified in screen pixel offset, so need to divide by layer distance if in our 'world space'.
         dz = 1 + c.z*dzDelta
         c.x=leftEdge + (w.x - camPos.x) / dz
 
         -- this doesn't really help!
-        if (c.x < 0) then c.x=c.x+1024.0 end
-        if (c.x >= 1024) then c.x=c.x-1024.0 end
+        if (c.x < 0) then
+            io.write(string.format("Layer %d overflow left! (%f)\n", i, c.x))
+            c.x=c.x+rowWidthPixels
+        end
+        if (c.x >= rowWidthPixels-screenWidth) then
+            io.write(string.format("Layer %d overflow right! (%f)\n", i, c.x))
+            c.x=c.x-rowWidthPixels
+        end
 
         -- layer y position specified in world space.
         c.y=topEdge + w.y - camPos.y
 
         -- fade colour based on distance.
-        f=math.modf(16.0*(maxDepths-c.z)/maxDepths)
-        c.c.r=math.tointeger(w.c.r*f//16)
-        c.c.g=math.tointeger(w.c.g*f//16)
-        c.c.b=math.tointeger(w.c.b*f//16)
+        c.c.r = w.c.r
+        c.c.g = w.c.g
+        c.c.b = w.c.b
     end
     table.sort(cameraLayers, function (a,b) return a.z > b.z end)
 end
 
-function path_Spring(t, speed)
-    wz=speed * t
-    radius = 200
-    angle = wz * 2 * math.pi / maxDepths
+function colourLerp(startColour, endColour, delta)
+        f=math.modf(16.0*delta)
+        return {
+        r=math.tointeger(startColour.r + (endColour.r - startColour.r) * f//16),
+        g=math.tointeger(startColour.g + (endColour.g - startColour.g) * f//16),
+        b=math.tointeger(startColour.b + (endColour.b - startColour.b) * f//16)
+    }
+end
+
+function get_pattern(frameNo)
+    return frameNo // (framesPerRow * rowsPerPattern)
+end
+
+function get_row(frameNo)
+    return (frameNo % (framesPerRow * rowsPerPattern)) // framesPerRow
+end
+
+function camlayerPath_Circle(t, speed, radius)
+    local wz=speed * t
+    local angle = wz * 2 * math.pi / maxDepths
     return {x=radius * math.sin(angle), y=radius * math.cos(angle), z=wz}
 end
 
-function path_linearZ(t, speed)
-    return {x=0.0, y=0.0, z=speed * t} -- * t % maxDepths}
+function camPath_AlongZ(t, speed)
+    return {x=0.0, y=0.0, z=speed * t}
 end
 
-function moveCamera(cameraPathFn, pathParam)
-    camPos = cameraPathFn(frames(), pathParam)
-    -- camPos.z=1*f % maxDepths
-    -- scale = 0 -- 1.0 - camPos.z / maxDepths
-    -- camPos.x=4*checkSizePixels * math.cos(4 * math.pi * f / maxDepths) * scale
-    -- camPos.y=4*checkSizePixels * math.sin(4 * math.pi * f / maxDepths) * scale
+function moveCamera(cameraPathFn, ...)
+    camPos = cameraPathFn(frames(), ...)
 end
 
-function path_Circle(wz)
-    radius = 200
-    angle = wz * 2 * math.pi / maxDepths
+function layerPath_Circle(wz)
+    local radius = 200
+    local angle = wz * 2 * math.pi / maxDepths
     return {x=radius * math.sin(angle), y=radius * math.cos(angle)}
 end
 
-function dist_Even(z)
-    -- io.write(string.format("dist_Even: z=%d z MOD 32=%d\n",z, z%32))
-    return z % 48 == 0
+function layerDist_Regular(wz)
+    return wz % 48 == 0
 end
 
 function path_Line(wz)
@@ -119,71 +139,87 @@ function path_Line(wz)
 end
 
 function updateWorldLayers(layerPathFn, layerDistFn)
-    t=0
-    i=1
+    local lz=0
+    local i=1
 
-    while (t < maxDepths and i <= maxLayers) do
+    while (lz < maxDepths and i <= maxLayers) do
 
-        z=camPos.z + t
+        local wz=camPos.z + lz
 
-        if (layerDistFn(z)) then
-            w=worldLayers[i]
+        if (layerDistFn(wz)) then
+            local w=worldLayers[i]
 
             --- io.write(string.format("add layer %d at z=%d\n", i, z))
 
-            pos = layerPathFn(z)
+            local pos = layerPathFn(wz)
             w.x = pos.x
             w.y = pos.y
-            w.z = z * 1.0
-            c = w.c
+            w.z = wz * 1.0
+
+            local delta = lz / 512.0
+            if (w.z % 384 == 0) then
+                w.c = colourLerp(secondaryColour, BLACK, delta)
+            else
+                w.c = colourLerp(primaryColour, BLACK, delta)
+            end
+
+            if get_pattern(frames()) > 1 and frames() % framesPerBeat == 0 then
+                if i == 4 then
+                    w.c.r = highlightColour.r
+                    w.c.g = highlightColour.g
+                    w.c.b = highlightColour.b
+                end
+            end
+
+            -- io.write(string.format("layer %d lz=%d f=%f\n", i, lz, f))
+
+            --- w.c.r = primaryColour.r
+            -- w.c.g = primaryColour.g
+            -- w.c.b = primaryColour.b
 
             i=i+1
         end
 
-        t=t+1
+        lz=lz+1
     end
 
 end
 
-radius=10
-amp=0
 
-function moveWorldLayers()
-    for i=1,#worldLayers do
-        w=worldLayers[i]
-
-        z=w.z - camPos.z % maxDepths
-        if (z < 0) then z=z+maxDepths end
-
-        angle=i+t*3.01 -- decimal gives some rotation
-        x=math.sin(angle)*radius
-        y=math.cos(angle)*radius
-    
-        oa=(i+f*3.01)/50
-        ox=x+math.sin(oa)*z*amp
-        oy=y+math.cos(oa)*z*amp
-
-        w.x=ox
-        w.y=oy
-    end
+function part1(t)
+ moveCamera(camlayerPath_Circle, 1, 200)
+ updateWorldLayers(layerPath_Circle, layerDist_Regular)
+ -- do highlights etc.
 end
+
+function part2(t)
+ moveCamera(camPath_AlongZ, 1)
+ updateWorldLayers(path_Line, layerDist_Regular)
+end
+
 
 function TIC()
+ sequence = {
+    {fs=0,fe=1000,fn=part1},
+    {fs=1000,fe=2000,fn=part2}
+ }
 
  f=frames()
 
- -- do something!
- moveCamera(path_Spring, 1)
- --- moveWorldLayers()
- updateWorldLayers(path_Circle, dist_Even)
- sortCameraLayers()
+ for i=1,#sequence do
+    seq=sequence[i]
+    if (f >= seq.fs and f < seq.fe) then
+        seq.fn(f-seq.fs)
+    end
+ end
 
+ sortCameraLayers()
 end
 
 function get_track_value(track_no)
- layer_no = 1 + track_no // 4
- field_no = track_no % 4
- layer = cameraLayers[layer_no]
+ local layer_no = 1 + track_no // 4
+ local field_no = track_no % 4
+ local layer = cameraLayers[layer_no]
 
  if (field_no == 0) then return layer.x end
  if (field_no == 1) then return layer.y end
