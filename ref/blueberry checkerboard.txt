@@ -425,6 +425,7 @@ TODO:
 ~~~
 
 - [Engine] Debug controls for resetting frame counter, debug info, toggle rasters. - DONE
+- [Engine] Jump forward by N frames.
 - [Lua] Tidy up the script and decide on exact control / configuration flow.
 - [Lua] Set colours whilst generating layers. - DONE
 - [Lua] Support for palette sets? [back colour, front colour, fade distance?] - STARTED
@@ -455,3 +456,8 @@ sequence
 - Fade out?
 
 - <Another sequence with individual layers moving>
+
+ponder
+~~
+move camera based on pos += velocity
+or set pos = f(t) ?

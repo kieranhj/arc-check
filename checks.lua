@@ -14,6 +14,7 @@ maxDepths=512
 framesPerRow=6
 rowsPerPattern=64
 framesPerBeat=48
+framesPerPattern=(framesPerRow*rowsPerPattern)
 
 leftEdge=(rowWidthPixels/2)-(screenWidth/2)
 topEdge=checkSizePixels/2
@@ -54,6 +55,15 @@ initLayers()
 
 camPos={x=0.0,y=0.0,z=0.0}
 
+function debugPrintAllLayers(layers)
+    io.write(string.format("Layers at frame %d:\n",frames()))
+    for i=1,#layers do
+        layer=layers[i]
+        io.write(string.format("layer[%d] {x=%f,y=%f,z=%f,colour={%d,%d,%d}}\n",
+        i,layer.x,layer.y,layer.z,layer.c.r,layer.c.g,layer.c.b))
+    end
+end
+
 function sortCameraLayers()
     for i=1,#worldLayers do
         w=worldLayers[i]
@@ -61,11 +71,16 @@ function sortCameraLayers()
 
         -- wrap layer depth to maxDepths.
         -- TODO: or don't draw it if behind camera!
-        c.z=(w.z - camPos.z) % maxDepths
+        c.z=w.z - camPos.z
 
         if (c.z < 0) then
-            io.write(string.format("Layer %d behind the camera!z\n", i))
-            c.z=c.z+maxDepths
+            io.write(string.format("Layer %d behind the camera!\n", i))
+            c.z=c.z + maxDepths
+        end
+
+        if (c.z > maxDepths) then
+            io.write(string.format("Layer %d beyond far clipping plane!\n", i))
+            c.z=c.z % maxDepths
         end
 
         -- layer x position specified in screen pixel offset, so need to divide by layer distance if in our 'world space'.
@@ -91,11 +106,23 @@ function sortCameraLayers()
         c.c.b = w.c.b
     end
     table.sort(cameraLayers, function (a,b) return a.z > b.z end)
+
+    for i=1,#cameraLayers-1 do
+        layer1=cameraLayers[i]
+        layer2=cameraLayers[i+1]
+        if (layer1.c.b > layer2.c.b ) then
+            debugPrintAllLayers(worldLayers)
+        end
+    end
 end
 
 function colourLerp(startColour, endColour, delta)
-        f=math.modf(16.0*delta)
-        return {
+    if (delta < 0.0 or delta >= 1.0) then
+        io.write(string.format("colourLerp: delta=%f\n", delta))
+    end
+
+    f=math.modf(16*delta)
+    return {
         r=math.tointeger(startColour.r + (endColour.r - startColour.r) * f//16),
         g=math.tointeger(startColour.g + (endColour.g - startColour.g) * f//16),
         b=math.tointeger(startColour.b + (endColour.b - startColour.b) * f//16)
@@ -110,72 +137,72 @@ function get_row(frameNo)
     return (frameNo % (framesPerRow * rowsPerPattern)) // framesPerRow
 end
 
-function camlayerPath_Circle(t, speed, radius)
-    local wz=speed * t
+function camPath_Circle(t, curZ, speed, radius)
+    local wz=curZ+speed
     local angle = wz * 2 * math.pi / maxDepths
     return {x=radius * math.sin(angle), y=radius * math.cos(angle), z=wz}
 end
 
-function camPath_AlongZ(t, speed)
-    return {x=0.0, y=0.0, z=speed * t}
+function camPath_Lissajous(t, curZ, speed, radius, xf, yf)
+    local wz=curZ+speed
+    local angle = t * 2 * math.pi / maxDepths
+    return {x=radius * math.sin(xf*angle), y=radius * math.cos(yf*angle), z=wz}
 end
 
-function moveCamera(cameraPathFn, ...)
-    camPos = cameraPathFn(frames(), ...)
+function camPath_AlongZ(t, curZ, speed)
+    return {x=0.0, y=0.0, z=curZ+speed}
 end
 
-function layerPath_Circle(wz)
-    local radius = 200
+function moveCamera(cameraPathFn, t, ...)
+    camPos = cameraPathFn(t, camPos.z, ...)
+end
+
+function layerPath_Circle(wz, params)
+    local radius = params.radius
     local angle = wz * 2 * math.pi / maxDepths
     return {x=radius * math.sin(angle), y=radius * math.cos(angle)}
 end
 
-function layerDist_Regular(wz)
-    return wz % 48 == 0
+function layerDist_Regular(wz, params)
+    return wz % params.spacing == 0
 end
 
-function path_Line(wz)
+function layerPath_Origin(wz, params)
     return {x=0.0, y=0.0}
 end
 
-function updateWorldLayers(layerPathFn, layerDistFn)
+function updateWorldLayers(layerPathFn, pathParams, layerDistFn, distParams)
     local lz=0
     local i=1
 
     while (lz < maxDepths and i <= maxLayers) do
 
-        local wz=camPos.z + lz
+        local wz = math.ceil(camPos.z + lz)
 
-        if (layerDistFn(wz)) then
+        if (layerDistFn(wz, distParams)) then
             local w=worldLayers[i]
 
             --- io.write(string.format("add layer %d at z=%d\n", i, z))
 
-            local pos = layerPathFn(wz)
+            local pos = layerPathFn(wz, pathParams)
             w.x = pos.x
             w.y = pos.y
             w.z = wz * 1.0
 
             local delta = lz / 512.0
-            if (w.z % 384 == 0) then
+            if (w.z % 192 == 0) then
                 w.c = colourLerp(secondaryColour, BLACK, delta)
             else
                 w.c = colourLerp(primaryColour, BLACK, delta)
             end
 
-            if get_pattern(frames()) > 1 and frames() % framesPerBeat == 0 then
-                if i == 4 then
-                    w.c.r = highlightColour.r
-                    w.c.g = highlightColour.g
-                    w.c.b = highlightColour.b
-                end
-            end
-
-            -- io.write(string.format("layer %d lz=%d f=%f\n", i, lz, f))
-
-            --- w.c.r = primaryColour.r
-            -- w.c.g = primaryColour.g
-            -- w.c.b = primaryColour.b
+            --if get_pattern(frames()) > 1 and frames() % framesPerBeat == 0 then
+            --    if i == 4 then
+            --       w.c.r = highlightColour.r
+            --       w.c.g = highlightColour.g
+            --       w.c.b = highlightColour.b
+            --    end
+            --end
 
             i=i+1
         end
@@ -183,33 +210,91 @@ function updateWorldLayers(layerPathFn, layerDistFn)
         lz=lz+1
     end
 
+    while (i <= maxLayers) do
+        -- We have unused layers.
+        local w=worldLayers[i]
+        w.x = 0.0
+        w.y = 0.0
+        w.z = camPos.z + maxDepths - 1.0
+        w.c.r = 0
+        w.c.g = 0
+        w.c.b = 0
+        i=i+1
+    end
+
 end
 
+function layerDist_FarMesh(wz, params)
+    if (wz < params.firstLayerZ) then return false end
+    return (wz - params.firstLayerZ) % params.spacing == 0
+end
 
-function part1(t)
- moveCamera(camlayerPath_Circle, 1, 200)
- updateWorldLayers(layerPath_Circle, layerDist_Regular)
+function part1(t, zStart)
+ local sp=2
+ if (t < framesPerPattern) then sp=0.5
+ elseif (t < 2*framesPerPattern) then
+   sp=0.5+1.5*((t-framesPerPattern)/framesPerPattern)
+ end
+
+ moveCamera(camPath_AlongZ, t, sp)
+ updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=512})
+
  -- do highlights etc.
 end
 
-function part2(t)
- moveCamera(camPath_AlongZ, 1)
- updateWorldLayers(path_Line, layerDist_Regular)
+function part2(t, zStart)
+ local radius = 400 * math.sin(t/100)
+ local sp = 2.0
+
+ moveCamera(camPath_Circle, t, sp, radius)
+ updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32})
 end
 
+function part3(t, zStart)
+    local radius = 200 * math.sin(t/100)
+    local sp = 1.0
+   
+    moveCamera(camPath_Circle, t, sp, radius)
+    updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16})
+end
+
+function part4(t, zStart)
+    local radius = 400 * math.sin(t/100)
+    local sp = -1.0
+   
+    moveCamera(camPath_Circle, t, sp, radius)
+    updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=64})
+end
+
+function part5(t, zStart)
+    local radius = 600
+    camPos.z=0.0
+    moveCamera(camPath_Lissajous, t, 0, radius, 1.5, 1.0)
+    updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
+end
 
 function TIC()
  sequence = {
-    {fs=0,fe=1000,fn=part1},
-    {fs=1000,fe=2000,fn=part2}
+    {fs=0,fe=framesPerPattern*2,fn=part1,zs=-1},
+    {fs=framesPerPattern*2,fe=framesPerPattern*3,fn=part2,zs=-1},
+    {fs=framesPerPattern*3,fe=framesPerPattern*4,fn=part4,zs=-1},
+    {fs=framesPerPattern*4,fe=framesPerPattern*5,fn=part3,zs=-1},
+    {fs=framesPerPattern*5,fe=9999,fn=part5,zs=-1},
  }
 
  f=frames()
+ -- TODO: Allow jump forward in time by running sequence for N frames if there's gap.
+
+ if (f==0) then
+    camPos={x=0.0,y=0.0,z=0.0}
+ end
 
  for i=1,#sequence do
     seq=sequence[i]
     if (f >= seq.fs and f < seq.fe) then
-        seq.fn(f-seq.fs)
+        local t=f-seq.fs
+        if (t==0) then seq.zs=camPos.z end
+        seq.fn(t, seq.zs)
     end
  end
 
