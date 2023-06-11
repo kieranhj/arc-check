@@ -1,5 +1,11 @@
 -- Scripting for Archie checkerboard engine.
 
+exportFile=io.open("lua_frames.txt", "w")
+exportFile:setvbuf("no")
+
+exportBin=io.open("lua_frames.bin", "wb")
+exportBin:setvbuf("no")
+
 debugFile=io.open("lua_debug.txt", "a")
 io.output(debugFile)
 
@@ -71,7 +77,7 @@ function sortCameraLayers()
 
         -- wrap layer depth to maxDepths.
         -- TODO: or don't draw it if behind camera!
-        c.z=w.z - camPos.z
+        c.z=math.modf(w.z - camPos.z) * 1.0
 
         if (c.z < 0) then
             io.write(string.format("Layer %d behind the camera!\n", i))
@@ -85,7 +91,7 @@ function sortCameraLayers()
 
         -- layer x position specified in screen pixel offset, so need to divide by layer distance if in our 'world space'.
         dz = 1 + c.z*dzDelta
-        c.x=leftEdge + (w.x - camPos.x) / dz
+        c.x=math.modf(leftEdge + (w.x - camPos.x) / dz) * 1.0
 
         -- this doesn't really help!
         if (c.x < 0) then
@@ -98,7 +104,7 @@ function sortCameraLayers()
         end
 
         -- layer y position specified in world space.
-        c.y=topEdge + w.y - camPos.y
+        c.y=math.modf(topEdge + w.y - camPos.y) * 1.0
 
         -- fade colour based on distance.
         c.c.r = w.c.r
@@ -121,11 +127,11 @@ function colourLerp(startColour, endColour, delta)
         io.write(string.format("colourLerp: delta=%f\n", delta))
     end
 
-    f=math.modf(16*delta)
+    local lerp=math.modf(16*delta)
     return {
-        r=math.tointeger(startColour.r + (endColour.r - startColour.r) * f//16),
-        g=math.tointeger(startColour.g + (endColour.g - startColour.g) * f//16),
-        b=math.tointeger(startColour.b + (endColour.b - startColour.b) * f//16)
+        r=math.tointeger(startColour.r + (endColour.r - startColour.r) * lerp//16),
+        g=math.tointeger(startColour.g + (endColour.g - startColour.g) * lerp//16),
+        b=math.tointeger(startColour.b + (endColour.b - startColour.b) * lerp//16)
     }
 end
 
@@ -273,6 +279,8 @@ function part5(t, zStart)
     updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
 end
 
+lastFrame=-1
+lastPlaying=-1
 function TIC()
  sequence = {
     {fs=0,fe=framesPerPattern*2,fn=part1,zs=-1},
@@ -299,6 +307,22 @@ function TIC()
  end
 
  sortCameraLayers()
+
+ if (f~=lastFrame) then
+    lastFrame=f
+    if (exportFile) then exportFrame(exportFile) end
+    if (exportBin) then exportFrameBin(exportBin) end
+ end
+
+ if (is_running()~=lastPlaying) then
+    lastPlaying=is_running()
+    if (exportFile) then exportFile:flush() end
+    if (exportBin) then exportBin:flush() end
+ end
+end
+
+function to_rgb(col)
+    return 256*col.b+16*col.g+col.r
 end
 
 function get_track_value(track_no)
@@ -312,4 +336,29 @@ function get_track_value(track_no)
  if (field_no == 3) then return 256*layer.c.b+16*layer.c.g+layer.c.r end
 
  return -1
+end
+
+function exportFrame(handle)
+    handle:write(string.format("frame=%d\n", f))
+    for i=1,#cameraLayers do
+        layer=cameraLayers[i]
+        handle:write(string.format("track[%d]={x=%f,y=%f,z=%f,c=0x0%x%x%x}\n", i, layer.x, layer.y, layer.z, layer.c.b, layer.c.g, layer.c.r))
+    end
+end
+
+function writeShort(handle, short)
+    low_byte = short & 0xff
+    high_byte = (short >> 8) & 0xff
+    handle:write(string.format("%c%c",low_byte,high_byte))
+end
+
+function exportFrameBin(handle)
+    -- writeShort(handle, f)
+    for i=1,#cameraLayers do
+        layer=cameraLayers[i]
+        writeShort(handle, math.tointeger(math.modf(layer.x)))
+        writeShort(handle, math.tointeger(math.modf(layer.y)))
+        writeShort(handle, math.tointeger(math.modf(layer.z)))
+        writeShort(handle, to_rgb(layer.c))
+    end
 end

@@ -686,6 +686,8 @@ update_check_layers:
 
 .if _ENABLE_LUAPOD
     ; TODO: A less long-hand way of achieving this.
+    ; TODO: Remove all the shifting <<16 and >>16 back again.
+    ; TODO: Just read raw frame data directly rather than via fn calls.
     .set _layer, 0
     .rept Check_Total_Layers
     .set _track_base, _layer * 4

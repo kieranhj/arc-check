@@ -6,7 +6,7 @@
 .equ _ENABLE_RASTERMAN, 0
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 0
-.equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
@@ -18,6 +18,8 @@
 
 .equ _SET_DISPLAY_BANK_AT_VSYNC, 0		; as per Sarah's original framework.
 .equ _WRITE_VIDC_REGS_AT_VSYNC, 1		; to avoid flicker also faster than OS_Word.
+
+.equ MaxFrames, 2224                    ; for now!
 
 ; ============================================================================
 
@@ -247,7 +249,8 @@ main_loop:
 
     ; Update frame counter.
     ldr r0, frame_counter
-    add r0, r0, #1
+    cmp r0, #MaxFrames
+    addlt r0, r0, #1
     str r0, frame_counter
 
 main_loop_skip_tick:
@@ -411,7 +414,7 @@ debug_controls:
     swine QTM_Start             ; play
     .endif
 
-    .if _ENABLE_LUAPOD
+    .if _ENABLE_LUAPOD && _SYNC_EDITOR
     mov r3, r1
     bl luapod_set_is_playing
     mov r1, r3

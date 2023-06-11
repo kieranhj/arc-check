@@ -425,7 +425,7 @@ TODO:
 ~~~
 
 - [Engine] Debug controls for resetting frame counter, debug info, toggle rasters. - DONE
-- [Engine] Jump forward by N frames.
+- [Engine] Jump forward by N frames in debug. (Assumes fixed frames per MOD pattern.)
 - [Lua] Tidy up the script and decide on exact control / configuration flow.
 - [Lua] Set colours whilst generating layers. - DONE
 - [Lua] Support for palette sets? [back colour, front colour, fade distance?] - STARTED
@@ -433,18 +433,20 @@ TODO:
 - [Lua] Support more layers but only draw N in front of the camera? - DONE SORTA?
 - [Engine + Lua] Support some layers not visible?
     - Just plot in black at max distance?
-- [Lua] Export per frame data
+- [Lua] Export per frame data - DONE
     - 8x layers x 8 bytes (x,y,z,c) x 50Hz x 180s = 64b / frame = 3200 b/s = 562.5k :)
-- [Engine] Consume per frame data
+    - Need 4Mb for BSS anyway, so don't worry about party version.
+    - Compresses super well with Shrinkler.
+- [Engine] Consume per frame data - DONE for raw 64b/frame
 - [Engine] Ability to switch between different scenes (if needed?)
 - [Engine] Scenes with text? [Or just hack this in at the end.]
 - [Engine] Drop furthest 2x layers at runtime for ARM2 version? [Not needed for party version.]
 - [Music] Beg someone to compose a tune in extra quick time!
-    (Rhino, ne7 or use Hoff's if he doesn't do Rose thing?)
+    (=>Rhino, or ne7 or use Hoff's if he doesn't do Rose thing?)
+- [Engine] Fix one frame flash?
 
-sequence
+Sequence
 ~~
-
 - Start with mesh screen far away, fade into view.
     - Straight line or spiralling camera? Lissajous!
 - Go through straight tunnel at speed for a bit.
@@ -457,7 +459,7 @@ sequence
 
 - <Another sequence with individual layers moving>
 
-ponder
+Ponder
 ~~
 move camera based on pos += velocity
 or set pos = f(t) ?
