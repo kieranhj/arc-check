@@ -1,10 +1,10 @@
 -- Scripting for Archie checkerboard engine.
 
-exportFile=io.open("lua_frames.txt", "w")
-exportFile:setvbuf("no")
+exportFile=nil -- io.open("lua_frames.txt", "w")
+-- exportFile:setvbuf("no")
 
-exportBin=io.open("lua_frames.bin", "wb")
-exportBin:setvbuf("no")
+exportBin=nil -- io.open("lua_frames.bin", "wb")
+-- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
 io.output(debugFile)
@@ -35,6 +35,7 @@ primaryColour={r=0xf,g=0x8,b=0x8}
 secondaryColour={r=0x8,g=0x8,b=0x8}
 highlightColour={r=0xf,g=0xf,b=0xf}
 
+globalFade=1.0
 
 function initLayers()
     io.write(string.format("initLayers(%d)\n", frames()))
@@ -107,9 +108,7 @@ function sortCameraLayers()
         c.y=math.modf(topEdge + w.y - camPos.y) * 1.0
 
         -- fade colour based on distance.
-        c.c.r = w.c.r
-        c.c.g = w.c.g
-        c.c.b = w.c.b
+        c.c = colourLerp(BLACK, w.c, globalFade)
     end
     table.sort(cameraLayers, function (a,b) return a.z > b.z end)
 
@@ -123,8 +122,8 @@ function sortCameraLayers()
 end
 
 function colourLerp(startColour, endColour, delta)
-    if (delta < 0.0 or delta >= 1.0) then
-        io.write(string.format("colourLerp: delta=%f\n", delta))
+    if (delta < 0.0 or delta > 1.0) then
+        io.write(string.format("colourLerp: delta=%f is this expected?\n", delta))
     end
 
     local lerp=math.modf(16*delta)
@@ -235,7 +234,7 @@ function layerDist_FarMesh(wz, params)
     return (wz - params.firstLayerZ) % params.spacing == 0
 end
 
-function part1(t, zStart)
+function part1(t, zStart, totalFrames)
  local sp=2
  if (t < framesPerPattern) then sp=0.5
  elseif (t < 2*framesPerPattern) then
@@ -244,39 +243,44 @@ function part1(t, zStart)
 
  moveCamera(camPath_AlongZ, t, sp)
  updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=512})
-
  -- do highlights etc.
+ globalFade=1.0
 end
 
-function part2(t, zStart)
+function part2(t, zStart, totalFrames)
  local radius = 400 * math.sin(t/100)
  local sp = 2.0
 
  moveCamera(camPath_Circle, t, sp, radius)
  updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32})
+
+ if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
-function part3(t, zStart)
+function part3(t, zStart, totalFrames)
     local radius = 200 * math.sin(t/100)
     local sp = 1.0
-   
+    
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
-function part4(t, zStart)
+function part4(t, zStart, totalFrames)
     local radius = 400 * math.sin(t/100)
     local sp = -1.0
    
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=64})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
-function part5(t, zStart)
+function part5(t, zStart, totalFrames)
     local radius = 600
     camPos.z=0.0
     moveCamera(camPath_Lissajous, t, 0, radius, 1.5, 1.0)
     updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
+    globalFade=1.0
 end
 
 lastFrame=-1
@@ -302,7 +306,7 @@ function TIC()
     if (f >= seq.fs and f < seq.fe) then
         local t=f-seq.fs
         if (t==0) then seq.zs=camPos.z end
-        seq.fn(t, seq.zs)
+        seq.fn(t, seq.zs, seq.fe-seq.fs)
     end
  end
 

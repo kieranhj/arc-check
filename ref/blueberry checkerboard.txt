@@ -429,7 +429,7 @@ TODO:
 - [Lua] Tidy up the script and decide on exact control / configuration flow.
 - [Lua] Set colours whilst generating layers. - DONE
 - [Lua] Support for palette sets? [back colour, front colour, fade distance?] - STARTED
-- [Lua] Support global palette fade out / in.
+- [Lua] Support global palette fade out / in. - DONE
 - [Lua] Support more layers but only draw N in front of the camera? - DONE SORTA?
 - [Engine + Lua] Support some layers not visible?
     - Just plot in black at max distance?
