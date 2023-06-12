@@ -432,7 +432,7 @@ TODO:
 - [Lua] Support global palette fade out / in. - DONE
 - [Lua] Support more layers but only draw N in front of the camera? - DONE SORTA?
 - [Engine + Lua] Support some layers not visible?
-    - Just plot in black at max distance?
+    - Just plot in black at max distance? - DONE I THINK?
 - [Lua] Export per frame data - DONE
     - 8x layers x 8 bytes (x,y,z,c) x 50Hz x 180s = 64b / frame = 3200 b/s = 562.5k :)
     - Need 4Mb for BSS anyway, so don't worry about party version.
@@ -440,6 +440,8 @@ TODO:
 - [Engine] Consume per frame data - DONE for raw 64b/frame
 - [Engine] Ability to switch between different scenes (if needed?)
 - [Engine] Scenes with text? [Or just hack this in at the end.]
+    - Would be nice to draw this on top of a flying sequence but that's a bonus.
+    - 
 - [Engine] Drop furthest 2x layers at runtime for ARM2 version? [Not needed for party version.]
 - [Music] Beg someone to compose a tune in extra quick time!
     (=>Rhino, or ne7 or use Hoff's if he doesn't do Rose thing?)

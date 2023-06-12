@@ -1,10 +1,10 @@
 -- Scripting for Archie checkerboard engine.
 
-exportFile=io.open("lua_frames.txt", "w")
-exportFile:setvbuf("no")
+exportFile = nil -- io.open("lua_frames.txt", "w")
+-- exportFile:setvbuf("no")
 
-exportBin=io.open("lua_frames.bin", "wb")
-exportBin:setvbuf("no")
+exportBin = nil -- io.open("lua_frames.bin", "wb")
+-- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
 debugFile:setvbuf("no")
@@ -108,7 +108,7 @@ function sortCameraLayers()
         -- layer y position specified in world space.
         c.y=math.modf(topEdge + w.y - camPos.y) * 1.0
 
-        -- fade colour based on distance.
+        -- global fade of the screen.
         c.c = colourLerp(BLACK, w.c, globalFade)
     end
     table.sort(cameraLayers, function (a,b) return a.z > b.z end)
@@ -195,7 +195,27 @@ function layerPath_Origin(wz, params)
     return {x=0.0, y=0.0}
 end
 
-function updateWorldLayers(layerPathFn, pathParams, layerDistFn, distParams)
+function colourBipLayer(t, wz, layer_no, params)
+    local col = primaryColour
+
+    if (wz % params.secondary_spacing == 0) then
+        col = secondaryColour
+    end
+
+    if (params.bipFrames) then
+        for i=1,#params.bipFrames do
+            bip=params.bipFrames[i]
+            if (t >= bip.t1 and t < (bip.t1+bip.t2) and bip.wz == wz) then
+                local d = (t - bip.t1) / bip.t2
+                col = colourLerp(highlightColour, col, d)
+            end
+        end
+    end
+
+    return col
+end
+
+function updateWorldLayers(t, layerPathFn, pathParams, layerDistFn, distParams, colourFn, colourParams)
     local lz=0
     local i=1
 
@@ -214,13 +234,25 @@ function updateWorldLayers(layerPathFn, pathParams, layerDistFn, distParams)
             w.z = wz * 1.0
 
             local delta = lz / 512.0
+            local c = primaryColour
 
-            -- TODO: A better way of specifying the layer colour.
-            if (w.z % 192 == 0) then
-                w.c = colourLerp(secondaryColour, BLACK, delta)
-            else
-                w.c = colourLerp(primaryColour, BLACK, delta)
+            if (colourParams) then
+                if (colourParams.fadeDepth) then
+                    delta = lz / colourParams.fadeDepth
+                end
             end
+
+            if (colourFn) then
+                c = colourFn(t, wz, i, colourParams)
+            else
+                -- TODO: A better way of specifying the layer colour.
+                if (w.z % 192 == 0) then
+                    c = secondaryColour -- colourLerp(secondaryColour, BLACK, delta)
+                end
+            end
+
+            -- distance fade.
+            w.c = colourLerp(c, BLACK, delta)
             i=i+1
         end
 
@@ -254,8 +286,21 @@ function part1(t, zStart, totalFrames) -- zoom towards mesh
  end
 
  moveCamera(camPath_AlongZ, t, sp)
- updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=512})
- -- do highlights etc.
+ updateWorldLayers(t,
+    layerPath_Origin, nil,
+    layerDist_FarMesh,
+    {spacing=32, firstLayerZ=512},
+    colourBipLayer,
+    {secondary_spacing=192,
+    bipFrames={
+        {t1=256,t2=16,wz=512+32},
+        {t1=256+64,t2=16,wz=512+96},
+        {t1=256+128,t2=16,wz=512+160},
+        {t1=256+160,t2=16,wz=512+224},
+        {t1=256+256,t2=16,wz=512+288},
+        {t1=256+320,t2=16,wz=512+352},
+    }})
+ -- TODO: Sure we can do better than this for highlights!
  globalFade=1.0
 end
 
@@ -264,7 +309,7 @@ function part2(t, zStart, totalFrames) -- circle tunnel
  local sp = 2.0
 
  moveCamera(camPath_Circle, t, sp, radius)
- updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32})
+ updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32})
 
  if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
@@ -274,7 +319,7 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local sp = 1.0
     
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -283,7 +328,7 @@ function part4(t, zStart, totalFrames) -- backwards circular tunnel
     local sp = -1.0
    
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=64})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=64})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -291,7 +336,7 @@ function part5(t, zStart, totalFrames) -- hover over mesh
     local radius = 600
     camPos.z=0.0
     moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
-    updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
+    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -299,7 +344,7 @@ function part6(t, zStart, totalFrames) -- lissajous forward motion
     local radius = 400
     local sp = 0.5
     moveCamera(camPath_LissajousOverDist, t, sp, radius, 1.1, 1.6, 0, 0)
-    updateWorldLayers(layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96})
+    updateWorldLayers(t, layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -307,7 +352,7 @@ function part7(t, zStart, totalFrames) -- hover over moving mesh
     local radius = 600
     camPos.z=0.0
     moveCamera(camPath_AlongZ, t, -0.1)
-    updateWorldLayers(layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48})
+    updateWorldLayers(t, layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -324,12 +369,12 @@ function TIC()
     {fs=framesPerPattern*12,fn=part7,zs=-1},
  }
 
+ if (frames() < f) then
+  camPos={x=0.0,y=0.0,z=0.0}
+ end
+
  f=frames()
  -- TODO: Allow jump forward in time by running sequence for N frames if there's gap.
-
- if (f==0) then
-    camPos={x=0.0,y=0.0,z=0.0}
- end
 
  for i=1,#sequence do
     seq=sequence[i]
