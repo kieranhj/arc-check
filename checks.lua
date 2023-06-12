@@ -1,12 +1,13 @@
 -- Scripting for Archie checkerboard engine.
 
-exportFile=nil -- io.open("lua_frames.txt", "w")
--- exportFile:setvbuf("no")
+exportFile=io.open("lua_frames.txt", "w")
+exportFile:setvbuf("no")
 
-exportBin=nil -- io.open("lua_frames.bin", "wb")
--- exportBin:setvbuf("no")
+exportBin=io.open("lua_frames.bin", "wb")
+exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
+debugFile:setvbuf("no")
 io.output(debugFile)
 
 maxLayers=8
@@ -148,10 +149,16 @@ function camPath_Circle(t, curZ, speed, radius)
     return {x=radius * math.sin(angle), y=radius * math.cos(angle), z=wz}
 end
 
-function camPath_Lissajous(t, curZ, speed, radius, xf, yf)
+function camPath_LissajousOverTime(t, curZ, speed, radius, xf, yf, xo, yo)
     local wz=curZ+speed
     local angle = t * 2 * math.pi / maxDepths
-    return {x=radius * math.sin(xf*angle), y=radius * math.cos(yf*angle), z=wz}
+    return {x=xo + radius * math.sin(xf*angle), y=yo + radius * math.cos(yf*angle), z=wz}
+end
+
+function camPath_LissajousOverDist(t, curZ, speed, radius, xf, yf, xo, yo)
+    local wz=curZ+speed
+    local angle = wz * 2 * math.pi / maxDepths
+    return {x=xo + radius * math.sin(xf*angle), y=yo + radius * math.cos(yf*angle), z=wz}
 end
 
 function camPath_AlongZ(t, curZ, speed)
@@ -166,6 +173,18 @@ function layerPath_Circle(wz, params)
     local radius = params.radius
     local angle = wz * 2 * math.pi / maxDepths
     return {x=radius * math.sin(angle), y=radius * math.cos(angle)}
+end
+
+function layerPath_LissajousOverDist(wz, params)
+    local radius = params.radius
+    local angle = wz * 2 * math.pi / maxDepths
+    return {x=params.xo + radius * math.sin(params.xf*angle), y=params.yo + radius * math.cos(params.yf*angle)}
+end
+
+function layerPath_LissajousOverTime(wz, params)
+    local radius = params.radius
+    local angle = (wz + params.t) * 2 * math.pi / maxDepths
+    return {x=params.xo + radius * math.sin(params.xf*angle), y=params.yo + radius * math.cos(params.yf*angle)}
 end
 
 function layerDist_Regular(wz, params)
@@ -187,7 +206,7 @@ function updateWorldLayers(layerPathFn, pathParams, layerDistFn, distParams)
         if (layerDistFn(wz, distParams)) then
             local w=worldLayers[i]
 
-            --- io.write(string.format("add layer %d at z=%d\n", i, z))
+            -- io.write(string.format("add layer %d at z=%d\n", i, z))
 
             local pos = layerPathFn(wz, pathParams)
             w.x = pos.x
@@ -195,20 +214,13 @@ function updateWorldLayers(layerPathFn, pathParams, layerDistFn, distParams)
             w.z = wz * 1.0
 
             local delta = lz / 512.0
+
+            -- TODO: A better way of specifying the layer colour.
             if (w.z % 192 == 0) then
                 w.c = colourLerp(secondaryColour, BLACK, delta)
             else
                 w.c = colourLerp(primaryColour, BLACK, delta)
             end
-
-            --if get_pattern(frames()) > 1 and frames() % framesPerBeat == 0 then
-            --    if i == 4 then
-            --       w.c.r = highlightColour.r
-            --       w.c.g = highlightColour.g
-            --       w.c.b = highlightColour.b
-            --    end
-            --end
-
             i=i+1
         end
 
@@ -234,7 +246,7 @@ function layerDist_FarMesh(wz, params)
     return (wz - params.firstLayerZ) % params.spacing == 0
 end
 
-function part1(t, zStart, totalFrames)
+function part1(t, zStart, totalFrames) -- zoom towards mesh
  local sp=2
  if (t < framesPerPattern) then sp=0.5
  elseif (t < 2*framesPerPattern) then
@@ -247,7 +259,7 @@ function part1(t, zStart, totalFrames)
  globalFade=1.0
 end
 
-function part2(t, zStart, totalFrames)
+function part2(t, zStart, totalFrames) -- circle tunnel
  local radius = 400 * math.sin(t/100)
  local sp = 2.0
 
@@ -257,7 +269,7 @@ function part2(t, zStart, totalFrames)
  if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
-function part3(t, zStart, totalFrames)
+function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local radius = 200 * math.sin(t/100)
     local sp = 1.0
     
@@ -266,7 +278,7 @@ function part3(t, zStart, totalFrames)
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
-function part4(t, zStart, totalFrames)
+function part4(t, zStart, totalFrames) -- backwards circular tunnel
     local radius = 400 * math.sin(t/100)
     local sp = -1.0
    
@@ -275,23 +287,41 @@ function part4(t, zStart, totalFrames)
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
-function part5(t, zStart, totalFrames)
+function part5(t, zStart, totalFrames) -- hover over mesh
     local radius = 600
     camPos.z=0.0
-    moveCamera(camPath_Lissajous, t, 0, radius, 1.5, 1.0)
+    moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
     updateWorldLayers(layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
-    globalFade=1.0
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+end
+
+function part6(t, zStart, totalFrames) -- lissajous forward motion
+    local radius = 400
+    local sp = 0.5
+    moveCamera(camPath_LissajousOverDist, t, sp, radius, 1.1, 1.6, 0, 0)
+    updateWorldLayers(layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+end
+
+function part7(t, zStart, totalFrames) -- hover over moving mesh
+    local radius = 600
+    camPos.z=0.0
+    moveCamera(camPath_AlongZ, t, -0.1)
+    updateWorldLayers(layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 lastFrame=-1
 lastPlaying=-1
 function TIC()
  sequence = {
-    {fs=0,fe=framesPerPattern*2,fn=part1,zs=-1},
-    {fs=framesPerPattern*2,fe=framesPerPattern*3,fn=part2,zs=-1},
-    {fs=framesPerPattern*3,fe=framesPerPattern*4,fn=part4,zs=-1},
-    {fs=framesPerPattern*4,fe=framesPerPattern*5,fn=part3,zs=-1},
-    {fs=framesPerPattern*5,fe=9999,fn=part5,zs=-1},
+    {fs=0,fn=part1,zs=-1},  -- was part1
+    {fs=framesPerPattern*2,fn=part2,zs=-1},
+    {fs=framesPerPattern*4,fn=part4,zs=-1},
+    {fs=framesPerPattern*6,fn=part3,zs=-1},
+    {fs=framesPerPattern*8,fn=part5,zs=-1},
+    {fs=framesPerPattern*10,fn=part6,zs=-1},
+    {fs=framesPerPattern*12,fn=part7,zs=-1},
  }
 
  f=frames()
@@ -303,10 +333,12 @@ function TIC()
 
  for i=1,#sequence do
     seq=sequence[i]
-    if (f >= seq.fs and f < seq.fe) then
+    next=sequence[i+1]
+    if (next) then fe=next.fs else fe=99999 end
+    if (f >= seq.fs and f < fe) then
         local t=f-seq.fs
         if (t==0) then seq.zs=camPos.z end
-        seq.fn(t, seq.zs, seq.fe-seq.fs)
+        if (seq.fn) then seq.fn(t, seq.zs, fe-seq.fs) end
     end
  end
 

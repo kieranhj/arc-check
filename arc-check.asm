@@ -6,7 +6,7 @@
 .equ _ENABLE_RASTERMAN, 0
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 0
-.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
@@ -22,7 +22,7 @@
 .if _SYNC_EDITOR
 .equ MaxFrames, 65536
 .else
-.equ MaxFrames, 2224                    ; for now!
+.equ MaxFrames, 5376                    ; for now!
 .endif
 
 ; ============================================================================
