@@ -14,8 +14,14 @@ music_data_no_adr:
 ; ============================================================================
 
 .p2align 6
-test_screen_no_adr:
+text_screen_1_no_adr:
 .incbin "data/raw/screen1.bin"
+
+text_screen_2_no_adr:
+.incbin "data/raw/screen2.bin"
+
+text_screen_3_no_adr:
+.incbin "data/raw/screen3.bin"
 
 ; ============================================================================
 

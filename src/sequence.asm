@@ -20,6 +20,12 @@ seq_main_program:
     set_draw_fn text_screen_plot
     write_addr layer_colour_start, Check_Layers_per_bitplane        ; don't set colours for layers on 'bottom' bitplane.
 
+    wait 256
+    write_addr text_screen_data_p, text_screen_2_no_adr
+
+    wait 256
+    write_addr text_screen_data_p, text_screen_3_no_adr
+
     ; Wait for 250 frames
     wait 1024
 

@@ -2,22 +2,22 @@
 ; Text screen plotting.
 ; ============================================================================
 
-test_screen_p:
-    .long test_screen_no_adr
+text_screen_data_p:
+    .long text_screen_1_no_adr
 
-test_colour:
+text_screen_colour_word:
     .long 0x33333333            ; or 0x77777777
 
 text_screen_plot:
-    ldr r8, test_screen_p
-    ldr r10, test_colour
+    ldr r8, text_screen_data_p
+    ldr r10, text_screen_colour_word
     b plot_bitplane_1_to_screen_and_mask
 
 .if 0
 ; R12=screen addr
 plot_text_screen_masked:
-    ldr r9, test_screen_p
-    ldr r10, test_colour
+    ldr r9, text_screen_data_p
+    ldr r10, text_screen_colour_word
 
     mov r11, #0                 ; scanline.
 .1:
