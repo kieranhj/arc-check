@@ -6,16 +6,17 @@
 .equ _ENABLE_MUSIC, 1
 .equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
-.equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
-.equ _DEBUG_RASTERS, (_DEBUG && 1)
-.equ _DEBUG_STOP_ON_FRAME, -1
+.equ _DEBUG_RASTERS, (_DEBUG && 0)
+.equ _CHECK_FRAME_DROP, (!_DEBUG && 1)
+
+.equ _DEBUG_STOP_ON_FRAME, -1           ; not used
 .equ _DEBUG_DEFAULT_PLAY_PAUSE, 1		; play
 .equ _DEBUG_DEFAULT_SHOW_RASTERS, 0
 .equ _DEBUG_DEFAULT_SHOW_INFO, 1		; slow
 
 .equ _SET_DISPLAY_BANK_AT_VSYNC, 0		; as per Sarah's original framework.
-.equ _WRITE_VIDC_REGS_AT_VSYNC, 1		; to avoid flicker also faster than OS_Word.
+
 
 .if _SYNC_EDITOR
 .equ MaxFrames, 65536
@@ -25,6 +26,7 @@
 
 ; ============================================================================
 
+; TODO: Figure out why palette setting at vsync glitches with >2 buffers!
 .equ Screen_Banks, 2
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
@@ -115,7 +117,7 @@ main:
 	; Clear all screen buffers
 	mov r1, #1
 .1:
-	str r1, scr_bank
+	str r1, write_bank
 
 	; CLS bank N
 	mov r0, #OSByte_WriteVDUBank
@@ -123,7 +125,7 @@ main:
 	mov r0, #12
 	SWI OS_WriteC
 
-	ldr r1, scr_bank
+	ldr r1, write_bank
 	add r1, r1, #1
 	cmp r1, #Screen_Banks
 	ble .1
@@ -138,10 +140,6 @@ main:
     bl luapod_init
     .endif
 
-	; Start with bank 1
-	mov r1, #1
-	str r1, scr_bank
-	
 	; Claim the Error vector
 	MOV r0, #ErrorV
 	ADR r1, error_handler
@@ -155,6 +153,11 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
+
+	; Start with bank 1
+	bl get_next_bank_for_writing
+	
+    ; Draw initial screen etc. 
 	adr r2, grey_palette
 	bl palette_set_block
 
@@ -194,7 +197,6 @@ main_loop:
 	.3:
 	.endif
 
-
 	; ========================================================================
 	; TICK
 	; ========================================================================
@@ -229,6 +231,7 @@ main_loop_skip_tick:
 
     ; TODO: Put in archie-verse frame handling routine for dropped frames.
 
+.if 0
 	; Block if we've not even had a vsync since last time - we're >50Hz!
 	.if (Screen_Banks == 2 && 0)
 	; Block if there's a buffer pending to be displayed when double buffered.
@@ -253,22 +256,40 @@ main_loop_skip_tick:
 	str r2, last_vsync
 	str r0, vsync_delta
 	; R0 = vsync delta since last frame.
+.else
+	; This will block if there isn't a bank available to write to.
+	bl get_next_bank_for_writing
+
+	; Useful to determine frame rate for debug.
+	.if _DEBUG || _CHECK_FRAME_DROP
+	ldr r1, last_vsync
+	ldr r2, vsync_count
+	sub r0, r2, r1
+	str r2, last_vsync
+	str r0, vsync_delta
+	.endif
+
+	; R0 = vsync delta since last frame.
+	.if _CHECK_FRAME_DROP
+	; This flashes if vsync IRQ has no pending buffer to display.
+	ldr r2, last_dropped_frame
+	ldr r1, last_last_dropped_frame
+	cmp r2, r1
+	moveq r4, #0x000000
+	movne r4, #0x0000ff
+	strne r2, last_last_dropped_frame
+	bl palette_set_border
+	.endif
+.endif
 
 	; ========================================================================
 	; DRAW
 	; ========================================================================
 
-	.if 0 ; if need to double-buffer raster table.
-	bl rasters_copy_table
-	.endif
-
-	; DO STUFF HERE!
-	bl get_next_screen_for_writing
-
 	SET_BORDER 0xff00ff	; magenta
 
 	ldr r12, screen_addr
-    .if 0
+    .if 1
 	bl plot_checks_to_screen
     .else
     ldr r8, test_screen_p
@@ -281,7 +302,7 @@ main_loop_skip_tick:
 
 	SET_BORDER 0x00ffff	; yellow
 
-	ldr r12, scr_bank
+	ldr r12, write_bank
 	bl check_layers_set_colours
 
 	SET_BORDER 0xffff00	; cyan
@@ -292,7 +313,7 @@ main_loop_skip_tick:
 	.endif
 
 	SET_BORDER 0x000000	; black
-	bl show_screen_at_vsync
+	bl mark_write_bank_as_pending_display
 
 	; ========================================================================
 	; LOOP
@@ -547,11 +568,11 @@ exit:
 
 	; Display whichever bank we've just written to
 	mov r0, #OSByte_WriteDisplayBank
-	ldr r1, scr_bank
+	ldr r1, write_bank
 	swi OS_Byte
 	; and write to it
 	mov r0, #OSByte_WriteVDUBank
-	ldr r1, scr_bank
+	ldr r1, write_bank
 	swi OS_Byte
 
 	; CLS
@@ -577,33 +598,24 @@ event_handler:
 	ADD r0, r0, #1
 	STR r0, vsync_count
 
-.if _SET_DISPLAY_BANK_AT_VSYNC
-	; is there a new screen buffer ready to display?
-	LDR r1, buffer_pending
-	CMP r1, #0
-	LDMEQIA sp!, {r0-r1, pc}
+	; Pending bank will now be displayed.
+	ldr r1, pending_bank
+	cmp r1, #0
+	.if _CHECK_FRAME_DROP
+	streq r0, last_dropped_frame
+	.endif
+	beq .3
 
-	; set the display buffer
-	MOV r0, #0
-	STR r0, buffer_pending
-	MOV r0, #OSByte_WriteDisplayBank
-	; some SVC stuff I don't understand :)
-	STMDB sp!, {r2-r12}
-	MOV r9, pc     ;Save old mode
-	ORR r8, r9, #3 ;SVC mode
-	TEQP r8, #0
-	MOV r0,r0
-	STR lr, [sp, #-4]!
-	SWI XOS_Byte
-.endif
+	str r1, displayed_bank
 
-.if _WRITE_VIDC_REGS_AT_VSYNC
+	; Clear pending bank.
+	mov r0, #0
+	str r0, pending_bank
+
+.3:
 	; is there a palette update ready to display?
-	LDR r1, palette_pending
+	;LDR r1, palette_pending
 	CMP r1, #0
-	.if _SET_DISPLAY_BANK_AT_VSYNC	; we're already in Supervisor Mode.
-	beq .2
-	.else
 	LDMEQIA sp!, {r0-r1, pc}
 
 	; Switch to Supervisor mode
@@ -612,8 +624,6 @@ event_handler:
 	ORR r8, r9, #3 ;SVC mode
 	TEQP r8, #0
 	MOV r0,r0
-	STR lr, [sp, #-4]!
-	.endif
 
 	; Write palette directly to VIDC.
 	adr r2, palette_blocks_for_banks_no_adr - 64	; THIS IS OK FOR US!
@@ -634,13 +644,11 @@ event_handler:
 	mov r0, #0
 	str r0, palette_pending
 
-	LDR lr, [sp], #4
 	TEQP r9, #0    ;Restore old mode
 	MOV r0, r0
 	LDMIA sp!, {r2-r12}
 
 	LDMIA sp!, {r0-r1, pc}
-.endif
 
 error_handler:
 	STMDB sp!, {r0-r2, lr}
@@ -664,11 +672,12 @@ error_handler:
 	MOV r2, #0
 	SWI OS_Release
 	MOV r0, #OSByte_WriteDisplayBank
-	LDR r1, scr_bank
+	LDR r1, write_bank
 	SWI OS_Byte
 	LDMIA sp!, {r0-r2, lr}
 	MOVS pc, lr
 
+.if 0
 show_screen_at_vsync:
 	; Show current bank at next vsync
 	ldr r1, scr_bank
@@ -697,14 +706,71 @@ get_next_screen_for_writing:
 
 	; Back buffer address for writing bank stored at screen_addr
 	b get_screen_addr
+.else
+mark_write_bank_as_pending_display:
+	; Mark write bank as pending display.
+	ldr r1, write_bank
+
+	; What happens if there is already a pending bank?
+	; At the moment we block but could also overwrite
+	; the pending buffer with the newer one to catch up.
+	; TODO: A proper fifo queue for display buffers.
+	.1:
+	ldr r0, pending_bank
+	cmp r0, #0
+	bne .1
+	str r1, pending_bank
+	str r1, palette_pending
+
+	; Show panding bank at next vsync.
+	MOV r0, #OSByte_WriteDisplayBank
+	swi OS_Byte
+	mov pc, lr
+
+get_next_bank_for_writing:
+	; Increment to next bank for writing
+	ldr r1, write_bank
+	add r1, r1, #1
+	cmp r1, #Screen_Banks
+	movgt r1, #1
+
+	; Block here if trying to write to displayed bank.
+	.1:
+	ldr r0, displayed_bank
+	cmp r1, r0
+	beq .1
+
+	str r1, write_bank
+
+	; Now set the screen bank to write to
+	mov r0, #OSByte_WriteVDUBank
+	swi OS_Byte
+
+	; Back buffer address for writing bank stored at screen_addr
+	b get_screen_addr
+.endif
 
 ; ============================================================================
 ; Global vars.
 ; ============================================================================
 
 ; TODO: rename these to be clearer.
+.if 0
 scr_bank:
 	.long 0				; current VIDC screen bank being written to.
+
+buffer_pending:
+	.long 0				; screen bank number to display at vsync.
+.else
+displayed_bank:
+	.long 0				; VIDC sreen bank being displayed
+
+write_bank:
+	.long 0				; VIDC screen bank being written to
+
+pending_bank:
+	.long 0				; VIDC screen to be displayed next
+.endif
 
 palette_block_addr:
 	.long 0				; (optional) ptr to a block of palette data for the screen bank being written to.
@@ -712,17 +778,24 @@ palette_block_addr:
 vsync_count:
 	.long 0				; current vsync count from start of exe.
 
+.if _DEBUG || _CHECK_FRAME_DROP
 last_vsync:
 	.long 0				; vsync count at start of previous frame.
 
 vsync_delta:
 	.long 0
+.endif
+
+.if _CHECK_FRAME_DROP
+last_dropped_frame:
+	.long 0
+
+last_last_dropped_frame:
+	.long 0
+.endif
 
 frame_counter:
     .long 0
-
-buffer_pending:
-	.long 0				; screen bank number to display at vsync.
 
 palette_pending:
 	.long 0				; (optional) ptr to a block of palette data to set at vsync.
