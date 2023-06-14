@@ -14,23 +14,6 @@ stack_base_no_adr:
 
 ; ============================================================================
 
-.if _ENABLE_RASTERMAN
-vidc_table_1_no_adr:
-	.skip 256*4*4
-
-; TODO: Can we get rid of these?
-vidc_table_2_no_adr:
-	.skip 256*4*4
-
-vidc_table_3_no_adr:
-	.skip 256*8*4
-
-memc_table_no_adr:
-	.skip 256*2*4
-.endif
-
-; ============================================================================
-
 .p2align 6
 check_rows_pixel_0_no_adr:
 	.skip Rows_Width_Bytes * Check_Num_Depths

@@ -3,14 +3,13 @@
 ; ============================================================================
 
 .equ _DEBUG, 1
-.equ _ENABLE_RASTERMAN, 0
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 0
 .equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 
-.equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
+.equ _DEBUG_RASTERS, (_DEBUG && 1)
 .equ _DEBUG_STOP_ON_FRAME, -1
 .equ _DEBUG_DEFAULT_PLAY_PAUSE, 1		; play
 .equ _DEBUG_DEFAULT_SHOW_RASTERS, 0
@@ -108,13 +107,6 @@ main:
 
 .if _ENABLE_MUSIC
 	; QTM Init.
-	; Required to make QTM play nicely with RasterMan.
-	.if _ENABLE_RASTERMAN
-	mov r0, #4
-	mov r1, #-1
-	mov r2, #-1
-	swi QTM_SoundControl
-	.endif
 
 	; Load module
 	mov r0, #0
@@ -139,9 +131,6 @@ main:
 	ble .1
 
 	; EARLY INITIALISATION HERE! (Tables etc.)
-	.if _ENABLE_RASTERMAN
-	bl rasters_init
-	.endif
 	bl maths_init
 
 	; Make buffers.
@@ -165,12 +154,10 @@ main:
 	SWI OS_Claim
 
 	; Claim the Event vector
-	.if !_ENABLE_RASTERMAN
 	mov r0, #EventV
 	adr r1, event_handler
 	mov r2, #0
 	swi OS_AddToVector
-	.endif
 
 	; LATE INITALISATION HERE!
 	adr r2, grey_palette
@@ -185,15 +172,10 @@ main:
 	.endif
 	.endif
 
-	; Fire up the RasterMan!
-	.if _ENABLE_RASTERMAN
-	swi RasterMan_Install
-	.else
 	; Enable Vsync 
 	mov r0, #OSByte_EventEnable
 	mov r1, #Event_VSync
 	SWI OS_Byte
-	.endif
 
 main_loop:
 
@@ -207,15 +189,8 @@ main_loop:
 	.endif
 
 	; exit if Escape is pressed
-	.if _ENABLE_RASTERMAN
-	swi RasterMan_ScanKeyboard
-	mov r1, #0xc0c0
-	cmp r0, r1
-	beq exit
-	.else
 	swi OS_ReadEscapeState
 	bcs exit
-	.endif
 	
 	.if _DEBUG
 	ldrb r0, debug_play_pause
@@ -267,11 +242,6 @@ main_loop_skip_tick:
 	; Really we need something more sophisticated here.
 	; Block only if there's no free buffer to write to.
 
-	.if _ENABLE_RASTERMAN
-	swi RasterMan_Wait
-	mov r0, #1				; TODO: Ask Steve for RasterMan_GetVsyncCounter.
-	.else
-
     ; TODO: Put in archie-verse frame handling routine for dropped frames.
 
 	; Block if we've not even had a vsync since last time - we're >50Hz!
@@ -296,7 +266,6 @@ main_loop_skip_tick:
 	sub r0, r2, r1
 	.endif
 	str r2, last_vsync
-	.endif
 	str r0, vsync_delta
 	; R0 = vsync delta since last frame.
 
@@ -568,12 +537,6 @@ screen_addr_input:
 
 exit:	
 	; wait for vsync (any pending buffers)
-	.if _ENABLE_RASTERMAN
-	swi RasterMan_Wait
-	swi RasterMan_Release
-	swi RasterMan_Wait
-	.endif
-
 	.if _ENABLE_MUSIC
 	; disable music
 	mov r0, #0
@@ -581,7 +544,6 @@ exit:
 	.endif
 
 	; disable vsync event
-	.if !_ENABLE_RASTERMAN
 	mov r0, #OSByte_EventDisable
 	mov r1, #Event_VSync
 	swi OS_Byte
@@ -591,7 +553,6 @@ exit:
 	adr r1, event_handler
 	mov r2, #0
 	swi OS_Release
-	.endif
 
 	; release our error handler
 	mov r0, #ErrorV
@@ -620,7 +581,6 @@ exit:
 	SWI OS_Exit
 
 ; R0=event number
-.if !_ENABLE_RASTERMAN
 event_handler:
 	cmp r0, #Event_VSync
 	movnes pc, r14
@@ -693,23 +653,19 @@ event_handler:
 	TEQP r9, #0    ;Restore old mode
 	MOV r0, r0
 	LDMIA sp!, {r2-r12}
-.endif
 
 	LDMIA sp!, {r0-r1, pc}
 .endif
 
 error_handler:
 	STMDB sp!, {r0-r2, lr}
-	.if _ENABLE_RASTERMAN
-	swi RasterMan_Release
-	.endif
 
 	.if _ENABLE_MUSIC
 	; disable music
 	mov r0, #0
 	swi QTM_Clear
 	.endif
-.if !_ENABLE_RASTERMAN
+
 	MOV r0, #OSByte_EventDisable
 	MOV r1, #Event_VSync
 	SWI OS_Byte
@@ -717,7 +673,7 @@ error_handler:
 	ADR r1, event_handler
 	mov r2, #0
 	SWI OS_Release
-.endif
+
 	MOV r0, #ErrorV
 	ADR r1, error_handler
 	MOV r2, #0
@@ -798,11 +754,8 @@ screen_addr:
 .include "src/check-rows.asm"
 
 .include "lib/maths.asm"
-.include "lib/mode9-screen.asm"
+;.include "lib/mode9-screen.asm"
 .include "lib/mode9-palette.asm"
-.if _ENABLE_RASTERMAN
-.include "lib/rasters.asm"
-.endif
 
 .if _ENABLE_ROCKET
 .include "lib/rocket.asm"
