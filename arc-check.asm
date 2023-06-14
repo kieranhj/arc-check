@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
@@ -157,8 +157,6 @@ main:
 	bl get_next_bank_for_writing
 	
     ; Draw initial screen etc. 
-	adr r2, grey_palette
-	bl palette_set_block
 
 	; Bootstrap the main sequence.
 	adr r0, seq_main_program
@@ -300,6 +298,8 @@ main_loop_skip_tick:
 
 	SET_BORDER 0x00ffff	; yellow
 
+    ldr r9, layer_colour_default
+    ldr r10, layer_colour_start
 	ldr r12, write_bank
 	bl check_layers_set_colours
 
@@ -326,6 +326,12 @@ music_data_p:
 
 draw_fn_p:
     .long plot_checks_to_screen
+
+layer_colour_start:
+    .long 0
+
+layer_colour_default:
+    .long 0x0fff
 
 error_noscreenmem:
 	.long 0
@@ -494,6 +500,10 @@ debug_controls:
     mov r1, #0
 	swi QTM_Pos
     .endif
+
+    bl script_kill_all
+	adr r0, seq_main_program
+	bl script_add_program
 
 	.6:
 	strb r1, debug_debounce_a

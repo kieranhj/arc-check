@@ -5,6 +5,10 @@
 ; R3 = index
 ; R4 = colour as 0x00BBGGRR
 ; Uses R0,R1 
+palette_set_col:
+    mov r3, r0
+    mov r4, r1
+
 palette_set_colour:
     adrl r1, palette_osword_block
     strb r3, [r1, #0]       ; logical colour

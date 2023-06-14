@@ -639,10 +639,6 @@ plot_bitplane_1_to_screen_and_mask:
     .error "Expected Screen_Stride to be 160."
     .endif
 
-.if Check_Layers_per_bitplane == 4
-    ldr r10, check_bitplane_mask
-.endif
-
     ; 'Blit' to screen from r9 to r12.
 .rept Screen_Stride / 16
     ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
@@ -683,6 +679,8 @@ plot_bitplane_1_to_screen_and_mask:
 
 ; ========================================================================
 
+; R9=default colour.
+; R10=start layer.
 ; R12=scr bank.
 check_layers_set_colours:
     str lr, [sp, #-4]!
@@ -691,11 +689,39 @@ check_layers_set_colours:
     add r8, r8, r12, lsl #6     ; scr_bank * 64.
 ;    str r8, palette_block_addr
 
-    adr r9, check_layer_colour
     mov r11, #0
+.10:
+    cmp r10, r11
+    beq .11
+
+    mov r4, r9
+    bl set_check_layer_colour_in_vidc_list
+
+    add r11, r11, #1
+    b .10
+.11:
+
+    adr r9, check_layer_colour
+;    mov r11, #0
 .1:
     ldr r4, [r9], #4        ; 0x0BGR
 
+    bl set_check_layer_colour_in_vidc_list
+
+    add r11, r11, #1
+    cmp r11, #Check_Total_Layers
+    blt .1
+
+.if Check_Layers_per_bitplane == 4
+    mov r0, #-1
+    str r0, [r8]            ; end of VIDC regs.
+.endif
+
+    ldr pc, [sp], #4
+
+; R11=layer no.
+; R4=0x0BGR
+set_check_layer_colour_in_vidc_list:
 .if Check_Layers_per_bitplane == 4
     ; Map layer no. to index 1,2,3,4,9,10,11,12
     add r3, r11, #1         ; index = layer + 1
@@ -729,17 +755,7 @@ check_layers_set_colours:
     str r4, [r8], #4        ; store VIDC register.
 .4:
 .endif
-
-    add r11, r11, #1
-    cmp r11, #Check_Total_Layers
-    blt .1
-
-.if Check_Layers_per_bitplane == 4
-    mov r0, #-1
-    str r0, [r8]            ; end of VIDC regs.
-.endif
-
-    ldr pc, [sp], #4
+    mov pc, lr
 
 palette_blocks_p:
     .long palette_blocks_for_banks_no_adr - 64

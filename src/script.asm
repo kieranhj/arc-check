@@ -63,6 +63,19 @@ script_tick_all:
 
     ldr pc, [sp], #4
 
+.if _DEBUG
+script_kill_all:
+    adr r12, script_contexts
+    adr r11, script_contexts_end
+    mov r10, #0                 ; NULL the program ptr.
+.1:
+    str r10, [r12, #ScriptContext_Ptr]
+    str r10, [r12, #ScriptContext_Wait]
+    add r12, r12, #Script_ContextSize
+    blt .1
+    mov pc, lr
+.endif
+
 ; R0=ptr to program.
 script_add_program:
     adr r2, script_contexts
