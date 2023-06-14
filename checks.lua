@@ -32,8 +32,11 @@ cameraLayers={}
 BLACK={r=0,g=0,b=0}
 WHITE={r=0xf,g=0xf,b=0xf}
 
-primaryColour={r=0xf,g=0x8,b=0x8}
-secondaryColour={r=0x8,g=0x8,b=0x8}
+primaryColour={r=0xf,g=0x8,b=0x8} -- pink
+-- primaryColour={r=0x8,g=0xf,b=0x4} -- neon green
+-- primaryColour={r=0xf,g=0xa,b=0x0} -- orange-ish
+-- secondaryColour={r=0xc,g=0x6,b=0xf} -- purple
+secondaryColour={r=0x8,g=0x8,b=0x8} -- mid-grey
 highlightColour={r=0xf,g=0xf,b=0xf}
 
 globalFade=1.0
@@ -319,7 +322,7 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local sp = 1.0
     
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16}, nil, {fadeDepth=160.0})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -336,7 +339,7 @@ function part5(t, zStart, totalFrames) -- hover over mesh
     local radius = 600
     camPos.z=0.0
     moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
-    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32})
+    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, nil, {fadeDepth=320.0})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -356,6 +359,7 @@ function part7(t, zStart, totalFrames) -- hover over moving mesh
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
+f=-1
 lastFrame=-1
 lastPlaying=-1
 function TIC()

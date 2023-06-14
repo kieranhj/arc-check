@@ -616,6 +616,71 @@ check_bitplane_mask:
     .long 0x77777777        ; TODO: Just mov #imm this.
 .endif
 
+; R12=screen_addr
+; R10=overlay colour word.
+; R8=overlay addr
+plot_bitplane_1_to_screen_and_mask:
+    str lr, [sp, #-4]!
+
+    ; Now blit everything to the screen.
+    mov r11, #0                 ; scanline.
+.8:
+    ldr r9, check_bitplane_1_line_combos_p
+
+    ldr r1, check_scanline_bitmask_p
+    ldr r7, [r1, r11, lsl #2]  ; parity bitmask
+    mov r0, r7, lsr #Check_Layers_per_bitplane
+    and r0, r0, #Check_Line_Combos-1
+
+    .if Screen_Stride == 160
+    add r9, r9, r0, lsl #7  ; + parity word * 128
+    add r9, r9, r0, lsl #5  ; + parity word * 32
+    .else
+    .error "Expected Screen_Stride to be 160."
+    .endif
+
+.if Check_Layers_per_bitplane == 4
+    ldr r10, check_bitplane_mask
+.endif
+
+    ; 'Blit' to screen from r9 to r12.
+.rept Screen_Stride / 16
+    ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
+    ; 8c
+    ldmia r8!, {r4-r7}      ; load 4 words of overlay
+    ; 8c
+
+    ; Mask out image pixels from checks.
+    bic r0, r0, r4
+    bic r1, r1, r5
+    bic r2, r2, r6
+    bic r3, r3, r7
+
+    ; Mask in colour to image pixels.
+    and r4, r4, r10
+    and r5, r5, r10
+    and r6, r6, r10
+    and r7, r7, r10
+
+    ; Mask coloured image pixels over checks.
+    orr r0, r0, r4
+    orr r1, r1, r5
+    orr r2, r2, r6
+    orr r3, r3, r7
+    ; 4c
+
+    stmia r12!, {r0-r3}
+    ; 8c
+.endr
+    ; Trashes r0-r7 (r11, r14)
+
+    ; Next scanline.
+    add r11, r11, #1
+    cmp r11, #Screen_Height
+    bne .8
+
+    ldr pc, [sp], #4
+
 ; ========================================================================
 
 ; R12=scr bank.

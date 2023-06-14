@@ -272,6 +272,8 @@ main_loop_skip_tick:
 	mov r0, #1				; TODO: Ask Steve for RasterMan_GetVsyncCounter.
 	.else
 
+    ; TODO: Put in archie-verse frame handling routine for dropped frames.
+
 	; Block if we've not even had a vsync since last time - we're >50Hz!
 	.if (Screen_Banks == 2 && 0)
 	; Block if there's a buffer pending to be displayed when double buffered.
@@ -312,7 +314,16 @@ main_loop_skip_tick:
 	SET_BORDER 0xff00ff	; magenta
 
 	ldr r12, screen_addr
+    .if 0
 	bl plot_checks_to_screen
+    .else
+    ldr r8, test_screen_p
+    ldr r10, test_colour
+    bl plot_bitplane_1_to_screen_and_mask
+    ; TODO: Set colour 3 to desired text colour. [Note: could actually use colours 1,2,3.]
+    ; TODO: Switch screens.
+    ; TODO: Make screens appear per scanline.
+    .endif
 
 	SET_BORDER 0x00ffff	; yellow
 
@@ -783,6 +794,7 @@ screen_addr:
 ; Additional code modules
 ; ============================================================================
 
+.include "src/text-screen.asm"
 .include "src/check-rows.asm"
 
 .include "lib/maths.asm"

@@ -440,10 +440,12 @@ TODO:
 - [Engine] Consume per frame data - DONE for raw 64b/frame
 - [Engine] Ability to switch between different scenes (if needed?)
 - [Engine] Scenes with text? [Or just hack this in at the end.]
-    - Would be nice to draw this on top of a flying sequence but that's a bonus.
-    - 
+    - Would be nice to draw this on top of a flying sequence but that's a bonus. - DONE
+    - TODO: Switch between 2x bitplanes and 1 + text at runtime.
+    - TODO: Set colour palette for text separately from layers.
+    - TODO: Generate text screens from RISCOS font?!
 - [Engine] Drop furthest 2x layers at runtime for ARM2 version? [Not needed for party version.]
-- [Music] Beg someone to compose a tune in extra quick time!
+- [Music] Beg someone to compose a tune in extra quick time! - IN PROGRESS.
     (=>Rhino, or ne7 or use Hoff's if he doesn't do Rose thing?)
 - [Engine] Fix one frame flash?
 
@@ -465,3 +467,10 @@ Ponder
 ~~
 move camera based on pos += velocity
 or set pos = f(t) ?
+
+A better approach to scripting might be to have layers as objects that are created
+mostly at init time for the sequence. {x,y,z,colour,update_fn}.
+The update_fn is called with frame time etc. and can control movement / colour change.
+The layers are inserted into a list sorted by z.
+The camera visible list in then just selected from the N layers z >= c.z.
+Anyway, don't worry about rewriting this unless the sequence dictates.

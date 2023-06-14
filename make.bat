@@ -25,17 +25,30 @@ if %ERRORLEVEL% neq 0 (
 	exit /b 1
 )
 
+echo Tokenising BASIC...
+bin\beebasm.exe -i src\basic_files.asm -do build\basic_files.ssd
+
+if %ERRORLEVEL% neq 0 (
+	echo Failed to tokenise BASIC.
+	exit /b 1
+)
+
+echo Extracting BASIC files...
+bin\bbcim -e build\basic_files.ssd screens
+
 echo Making !folder...
 set FOLDER="!Check"
 if EXIST %FOLDER% del /Q "%FOLDER%"
 if NOT EXIST %FOLDER% mkdir %FOLDER%
 
+set HOSTFS=..\arculator\hostfs
+
 echo Adding files...
 copy folder\*.* "%FOLDER%\*.*"
 copy build\arc-check.bin "%FOLDER%\!RunImage,ff8"
+copy build\basic_files.ssd.$.screens "%HOSTFS%\Screens,ffb"
 
 echo Copying !folder...
-set HOSTFS=..\arculator\hostfs
 if EXIST "%HOSTFS%\%FOLDER%" del /Q "%HOSTFS%\%FOLDER%"
 if NOT EXIST "%HOSTFS%\%FOLDER%" mkdir "%HOSTFS%\%FOLDER%"
 copy "%FOLDER%\*.*" "%HOSTFS%\%FOLDER%"

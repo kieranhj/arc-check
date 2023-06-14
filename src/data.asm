@@ -13,6 +13,12 @@ music_data_no_adr:
 
 ; ============================================================================
 
+.p2align 6
+test_screen_no_adr:
+.incbin "data/raw/screen1.bin"
+
+; ============================================================================
+
 .if _ENABLE_ROCKET
 .include "src/rocket-tracks.asm"
 .endif
