@@ -7,7 +7,7 @@
 .equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
-.equ _DEBUG_RASTERS, (_DEBUG && 0)
+.equ _DEBUG_RASTERS, (_DEBUG && 1)
 .equ _CHECK_FRAME_DROP, (!_DEBUG && 1)
 
 .equ _DEBUG_STOP_ON_FRAME, -1           ; not used
@@ -131,7 +131,6 @@ main:
 	ble .1
 
 	; EARLY INITIALISATION HERE! (Tables etc.)
-	bl maths_init
 
 	; Make buffers.
 	bl check_rows_init
@@ -160,6 +159,10 @@ main:
     ; Draw initial screen etc. 
 	adr r2, grey_palette
 	bl palette_set_block
+
+	; Bootstrap the main sequence.
+	adr r0, seq_main_program
+	bl script_add_program
 
 	; Sync tracker.
 	.IF _ENABLE_MUSIC
@@ -200,6 +203,8 @@ main_loop:
 	; ========================================================================
 	; TICK
 	; ========================================================================
+
+	bl script_tick_all
 
 	SET_BORDER 0x00ff00	; green
 
@@ -289,16 +294,9 @@ main_loop_skip_tick:
 	SET_BORDER 0xff00ff	; magenta
 
 	ldr r12, screen_addr
-    .if 1
-	bl plot_checks_to_screen
-    .else
-    ldr r8, test_screen_p
-    ldr r10, test_colour
-    bl plot_bitplane_1_to_screen_and_mask
-    ; TODO: Set colour 3 to desired text colour. [Note: could actually use colours 1,2,3.]
-    ; TODO: Switch screens.
-    ; TODO: Make screens appear per scanline.
-    .endif
+    adr r14, draw_return
+    ldr pc, draw_fn_p
+    draw_return:
 
 	SET_BORDER 0x00ffff	; yellow
 
@@ -325,6 +323,9 @@ main_loop_skip_tick:
 music_data_p:
 	.long music_data_no_adr
 .endif
+
+draw_fn_p:
+    .long plot_checks_to_screen
 
 error_noscreenmem:
 	.long 0
@@ -614,7 +615,7 @@ event_handler:
 
 .3:
 	; is there a palette update ready to display?
-	;LDR r1, palette_pending
+	LDR r1, palette_pending
 	CMP r1, #0
 	LDMEQIA sp!, {r0-r1, pc}
 
@@ -810,9 +811,8 @@ screen_addr:
 
 .include "src/text-screen.asm"
 .include "src/check-rows.asm"
+.include "src/script.asm"
 
-.include "lib/maths.asm"
-;.include "lib/mode9-screen.asm"
 .include "lib/mode9-palette.asm"
 
 .if _ENABLE_LUAPOD
@@ -822,6 +822,9 @@ screen_addr:
 ; ============================================================================
 ; Data Segment
 ; ============================================================================
+
+; TODO: Hot-reload this one day?
+.include "src/sequence.asm"
 
 grey_palette:
 .if Check_Layers_per_bitplane == 4

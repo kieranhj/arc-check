@@ -439,15 +439,16 @@ TODO:
     - Compresses super well with Shrinkler.
 - [Engine] Consume per frame data - DONE for raw 64b/frame
 - [Engine] Ability to switch between different scenes (if needed?)
+    - Backport Archie-Verse scripting/sequence system - DONE
 - [Engine] Scenes with text? [Or just hack this in at the end.]
     - Would be nice to draw this on top of a flying sequence but that's a bonus. - DONE
-    - TODO: Switch between 2x bitplanes and 1 + text at runtime.
+    - TODO: Switch between 2x bitplanes and 1 + text at runtime. - DONE
     - TODO: Set colour palette for text separately from layers.
-    - TODO: Generate text screens from RISCOS font?!
+    - TODO: Generate text screens from RISCOS font?! <= Or ASK SPINY BEFORE GLASTO!?
 - [Engine] Drop furthest 2x layers at runtime for ARM2 version? [Not needed for party version.]
 - [Music] Beg someone to compose a tune in extra quick time! - IN PROGRESS.
     (=>Rhino, or ne7 or use Hoff's if he doesn't do Rose thing?)
-- [Engine] Fix one frame flash?
+- [Engine] Fix one frame flash? (Only in _DEBUG?)
 
 Sequence
 ~~

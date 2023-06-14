@@ -8,6 +8,11 @@ test_screen_p:
 test_colour:
     .long 0x33333333            ; or 0x77777777
 
+text_screen_plot:
+    ldr r8, test_screen_p
+    ldr r10, test_colour
+    b plot_bitplane_1_to_screen_and_mask
+
 .if 0
 ; R12=screen addr
 plot_text_screen_masked:

@@ -10,7 +10,7 @@
 .equ _INCLUDE_POLYGON, 0
 .equ _INCLUDE_SPAN_GEN, 0
 
-.equ _INCLUDE_SINE, 1
+.equ _INCLUDE_SINE, 0
 .equ _MAKE_SINUS_TABLE, 0       ; TODO: Put back sine table generation!
 
 .equ _INCLUDE_VECTOR, 0
