@@ -19,12 +19,6 @@ test_screen_no_adr:
 
 ; ============================================================================
 
-.if _ENABLE_ROCKET
-.include "src/rocket-tracks.asm"
-.endif
-
-; ============================================================================
-
 .if _ENABLE_LUAPOD && !_SYNC_EDITOR
 .p2align 2
 luapod_frame_data_no_adr:

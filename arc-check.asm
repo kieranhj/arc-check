@@ -4,7 +4,6 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _ENABLE_ROCKET, 0
 .equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
@@ -40,7 +39,6 @@
 
 .include "lib/swis.h.asm"
 .include "src/lib-config.h.asm"
-.include "src/rocket-config.h.asm"
 
 ; ============================================================================
 
@@ -136,9 +134,6 @@ main:
 	; Make buffers.
 	bl check_rows_init
 
-	.if _ENABLE_ROCKET
-	bl rocket_init
-	.endif
     .if _ENABLE_LUAPOD
     bl luapod_init
     .endif
@@ -164,12 +159,8 @@ main:
 	bl palette_set_block
 
 	; Sync tracker.
-	.if _ENABLE_ROCKET
-	bl rocket_start		; handles music.
-	.else
 	.IF _ENABLE_MUSIC
 	swi QTM_Start
-	.endif
 	.endif
 
 	; Enable Vsync 
@@ -207,12 +198,6 @@ main_loop:
 	; ========================================================================
 	; TICK
 	; ========================================================================
-
-	; R0 = vsync delta since last frame.
-	.if _ENABLE_ROCKET
-	ldr r0, vsync_delta
-	bl rocket_update
-	.endif
 
 	SET_BORDER 0x00ff00	; green
 
@@ -756,10 +741,6 @@ screen_addr:
 .include "lib/maths.asm"
 ;.include "lib/mode9-screen.asm"
 .include "lib/mode9-palette.asm"
-
-.if _ENABLE_ROCKET
-.include "lib/rocket.asm"
-.endif
 
 .if _ENABLE_LUAPOD
 .include "src/luapod.asm"
