@@ -3,8 +3,8 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = nil -- io.open("lua_frames.bin", "wb")
--- exportBin:setvbuf("no")
+exportBin = io.open("lua_frames.bin", "wb")
+exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
 debugFile:setvbuf("no")
@@ -408,9 +408,11 @@ function TIC()
  sortCameraLayers()
 
  if (f~=lastFrame) then
+    if (f>lastFrame) then
+        if (exportFile) then exportFrame(exportFile) end
+        if (exportBin) then exportFrameBin(exportBin) end
+    end
     lastFrame=f
-    if (exportFile) then exportFrame(exportFile) end
-    if (exportBin) then exportFrameBin(exportBin) end
  end
 
  if (is_running()~=lastPlaying) then

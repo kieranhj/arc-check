@@ -2,7 +2,7 @@
 ; The actual sequence for the demo.
 ; ============================================================================
 
-.equ FramesPerRow, (4*50/60)
+.equ FramesPerRow, 3.33333333
 .equ RowsPerPattern, 64
 .equ FramesPerPattern, FramesPerRow*RowsPerPattern
 
@@ -18,7 +18,7 @@ seq_main_program:
     write_addr layer_colour_default, 0x0fff
 
     ; Wait for 250 frames
-    wait FramesPerPattern*12
+    wait FramesPerPattern*12                                        ; will be one frame out...!
 
     ; Crude draw fn.
     set_draw_fn text_screen_plot

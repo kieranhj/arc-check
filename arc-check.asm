@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
@@ -13,7 +13,7 @@
 .equ _DEBUG_STOP_ON_FRAME, -1           ; not used
 .equ _DEBUG_DEFAULT_PLAY_PAUSE, 1		; play
 .equ _DEBUG_DEFAULT_SHOW_RASTERS, 0
-.equ _DEBUG_DEFAULT_SHOW_INFO, 1		; slow
+.equ _DEBUG_DEFAULT_SHOW_INFO, 0		; slow
 
 .equ _SET_DISPLAY_BANK_AT_VSYNC, 0		; as per Sarah's original framework.
 
@@ -21,7 +21,7 @@
 .if _SYNC_EDITOR
 .equ MaxFrames, 65536
 .else
-.equ MaxFrames, 5376                    ; for now!
+.equ MaxFrames, 4672                    ; for now!
 .endif
 
 ; ============================================================================
