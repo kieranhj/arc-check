@@ -18,9 +18,8 @@ checkSizePixels=400
 dzDelta=0.05
 maxDepths=512
 
-framesPerRow=6
+framesPerRow=4*50/60.0
 rowsPerPattern=64
-framesPerBeat=48
 framesPerPattern=(framesPerRow*rowsPerPattern)
 
 leftEdge=(rowWidthPixels/2)-(screenWidth/2)
@@ -32,12 +31,15 @@ cameraLayers={}
 BLACK={r=0,g=0,b=0}
 WHITE={r=0xf,g=0xf,b=0xf}
 
-primaryColour={r=0xf,g=0x8,b=0x8} -- pink
--- primaryColour={r=0x8,g=0xf,b=0x4} -- neon green
--- primaryColour={r=0xf,g=0xa,b=0x0} -- orange-ish
--- secondaryColour={r=0xc,g=0x6,b=0xf} -- purple
-secondaryColour={r=0x8,g=0x8,b=0x8} -- mid-grey
-highlightColour={r=0xf,g=0xf,b=0xf}
+PINK={r=0xf,g=0x8,b=0x8}
+GREEN={r=0x8,g=0xf,b=0x4}
+ORANGE={r=0xf,g=0xa,b=0x0}
+PURPLE={r=0xc,g=0x6,b=0xf}
+GREY={r=0x8,g=0x8,b=0x8}
+
+primaryColour=PINK
+secondaryColour=GREY
+highlightColour=WHITE
 
 globalFade=1.0
 
@@ -288,6 +290,7 @@ function part1(t, zStart, totalFrames) -- zoom towards mesh
    sp=0.5+1.5*((t-framesPerPattern)/framesPerPattern)
  end
 
+ primaryColour=PINK
  moveCamera(camPath_AlongZ, t, sp)
  updateWorldLayers(t,
     layerPath_Origin, nil,
@@ -310,7 +313,10 @@ end
 function part2(t, zStart, totalFrames) -- circle tunnel
  local radius = 400 * math.sin(t/100)
  local sp = 2.0
+ 
+ colsel={PINK,ORANGE,GREEN,PURPLE}
 
+ primaryColour = colsel[((t//framesPerPattern)%4)+1]
  moveCamera(camPath_Circle, t, sp, radius)
  updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32})
 
@@ -321,6 +327,7 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local radius = 200 * math.sin(t/100)
     local sp = 1.0
     
+    primaryColour = GREEN
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16}, nil, {fadeDepth=160.0})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
@@ -330,6 +337,7 @@ function part4(t, zStart, totalFrames) -- backwards circular tunnel
     local radius = 400 * math.sin(t/100)
     local sp = -1.0
    
+    primaryColour = PURPLE
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=64})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
@@ -338,6 +346,8 @@ end
 function part5(t, zStart, totalFrames) -- hover over mesh
     local radius = 600
     camPos.z=0.0
+
+    primaryColour = PINK
     moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
     updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, nil, {fadeDepth=320.0})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
@@ -346,6 +356,8 @@ end
 function part6(t, zStart, totalFrames) -- lissajous forward motion
     local radius = 400
     local sp = 0.5
+
+    primaryColour = ORANGE
     moveCamera(camPath_LissajousOverDist, t, sp, radius, 1.1, 1.6, 0, 0)
     updateWorldLayers(t, layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
@@ -354,6 +366,8 @@ end
 function part7(t, zStart, totalFrames) -- hover over moving mesh
     local radius = 600
     camPos.z=0.0
+
+    primaryColour = GREEN
     moveCamera(camPath_AlongZ, t, -0.1)
     updateWorldLayers(t, layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end

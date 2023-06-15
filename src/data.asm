@@ -8,7 +8,7 @@
 .if _ENABLE_MUSIC
 music_data_no_adr:
 ;.incbin "data/music/arcchoon.mod"
-.incbin "data/music/4mat-l-f-f.mod"
+.incbin "data/music/cheqacid.mod"
 .endif
 
 ; ============================================================================

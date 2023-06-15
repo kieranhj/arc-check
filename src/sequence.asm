@@ -2,6 +2,10 @@
 ; The actual sequence for the demo.
 ; ============================================================================
 
+.equ FramesPerRow, (4*50/60)
+.equ RowsPerPattern, 64
+.equ FramesPerPattern, FramesPerRow*RowsPerPattern
+
 .macro set_draw_fn func
     write_addr draw_fn_p, \func
 .endm
@@ -14,20 +18,20 @@ seq_main_program:
     write_addr layer_colour_default, 0x0fff
 
     ; Wait for 250 frames
-    wait 256
+    wait FramesPerPattern*12
 
     ; Crude draw fn.
     set_draw_fn text_screen_plot
     write_addr layer_colour_start, Check_Layers_per_bitplane        ; don't set colours for layers on 'bottom' bitplane.
 
-    wait 256
+    wait 2*FramesPerPattern
     write_addr text_screen_data_p, text_screen_2_no_adr
 
-    wait 256
+    wait 2*FramesPerPattern
     write_addr text_screen_data_p, text_screen_3_no_adr
 
     ; Wait for 250 frames
-    wait 1024
+    wait 2*FramesPerPattern
 
     ; Crude draw fn.
     set_draw_fn plot_checks_to_screen

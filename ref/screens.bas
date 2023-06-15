@@ -1,6 +1,6 @@
 REM screens.bas
 MODE 9
-VDU 23,0,1,0;0;0;0;
+VDU 23,1,0,0;0;0;
 PROCscreen(1)
 PROCscreen(2)
 PROCscreen(3)
