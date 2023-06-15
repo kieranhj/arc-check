@@ -3,8 +3,8 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = io.open("lua_frames.bin", "wb")
-exportBin:setvbuf("no")
+exportBin = nil -- io.open("lua_frames.bin", "wb")
+-- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
 debugFile:setvbuf("no")
@@ -328,6 +328,13 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local sp = 1.0
     
     primaryColour = GREEN
+
+    if (t > framesPerPattern) then
+        local d = (t-framesPerPattern)/100.0
+        if (d > 1.0) then d=1.0 end
+        primaryColour = colourLerp(GREEN, PURPLE, d)
+    end
+
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16}, nil, {fadeDepth=160.0})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end

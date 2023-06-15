@@ -689,19 +689,22 @@ check_layers_set_colours:
     add r8, r8, r12, lsl #6     ; scr_bank * 64.
 ;    str r8, palette_block_addr
 
+    mov r0, r9
+    adr r9, check_layer_colour
     mov r11, #0
 .10:
     cmp r10, r11
     beq .11
 
-    mov r4, r9
+    ; REMOVE THIS LINE TO FADE TOP LAYERS BY ACCIDENT. :)
+    ldr r4, [r9], #4        ; 0x0BGR
+    mov r4, r0
     bl set_check_layer_colour_in_vidc_list
 
     add r11, r11, #1
     b .10
 .11:
 
-    adr r9, check_layer_colour
 ;    mov r11, #0
 .1:
     ldr r4, [r9], #4        ; 0x0BGR
