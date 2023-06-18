@@ -5,7 +5,26 @@ if EXIST build del /Q build\*.*
 if NOT EXIST build mkdir build
 
 if %ERRORLEVEL% neq 0 (
-	echo Failed to make  code.
+	echo Failed to make build folder.
+	exit /b 1
+)
+
+echo Converting assets...
+c:\dev\Python27\python.exe bin\png2arc.py -o build\screen1.bin data\gfx\bitshifters.png 9
+if %ERRORLEVEL% neq 0 (
+	echo Failed to convert assets.
+	exit /b 1
+)
+
+c:\dev\Python27\python.exe bin\png2arc.py -o build\screen2.bin data\gfx\credits_chess_piece_with_names_1bit_320_256.png 9
+if %ERRORLEVEL% neq 0 (
+	echo Failed to convert assets.
+	exit /b 1
+)
+
+c:\dev\Python27\python.exe bin\png2arc.py -o build\screen3.bin data\gfx\greets02_1bit_320_256.png 9
+if %ERRORLEVEL% neq 0 (
+	echo Failed to convert assets.
 	exit /b 1
 )
 

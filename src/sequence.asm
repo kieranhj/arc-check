@@ -20,8 +20,9 @@ seq_main_program:
     ; Wait for 250 frames
     wait FramesPerPattern*12                                        ; will be one frame out...!
 
-    ; Crude draw fn.
+    ; Display overlay image
     set_draw_fn text_screen_plot
+    write_addr text_screen_data_p, text_screen_1_no_adr
     write_addr layer_colour_start, Check_Layers_per_bitplane        ; don't set colours for layers on 'bottom' bitplane.
 
     wait 2*FramesPerPattern
@@ -33,7 +34,7 @@ seq_main_program:
     ; Wait for 250 frames
     wait 2*FramesPerPattern
 
-    ; Crude draw fn.
+    ; Back to all layers.
     set_draw_fn plot_checks_to_screen
     write_addr layer_colour_start, 0                                ; set colours for all layers.
 

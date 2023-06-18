@@ -7,7 +7,7 @@
 .include "../lib/swis.h.asm"
 
 .ifndef _WIMPSLOT
-.equ _WIMPSLOT, 2800*1024            ; Assumed RAM.
+.equ _WIMPSLOT, 3400*1024            ; Assumed RAM.
 .endif
 
 .equ STACK_SIZE, 1024

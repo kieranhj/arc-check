@@ -8,7 +8,7 @@ SPRITESIZE 0
 RMKILL MemAlloc 
 |
 RMLOAD <Demo$Dir>.QTM149a { > null: }
-wimpslot -min 2800K
+wimpslot -min 3400K
 <Demo$Dir>.!RunImage
 |
 RMKILL QTMTracker

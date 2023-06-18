@@ -7,21 +7,20 @@
 .p2align 6
 .if _ENABLE_MUSIC
 music_data_no_adr:
-;.incbin "data/music/arcchoon.mod"
-.incbin "data/music/cheqacid.mod"
+.incbin "data/music/chequered_past.mod"
 .endif
 
 ; ============================================================================
 
 .p2align 6
 text_screen_1_no_adr:
-.incbin "data/raw/screen1.bin"
+.incbin "build/screen1.bin"
 
 text_screen_2_no_adr:
-.incbin "data/raw/screen2.bin"
+.incbin "build/screen2.bin"
 
 text_screen_3_no_adr:
-.incbin "data/raw/screen3.bin"
+.incbin "build/screen3.bin"
 
 ; ============================================================================
 

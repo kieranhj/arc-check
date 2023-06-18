@@ -697,7 +697,7 @@ check_layers_set_colours:
     beq .11
 
     ; REMOVE THIS LINE TO FADE TOP LAYERS BY ACCIDENT. :)
-    ldr r4, [r9], #4        ; 0x0BGR
+    ; ldr r4, [r9], #4        ; 0x0BGR
     mov r4, r0
     bl set_check_layer_colour_in_vidc_list
 
