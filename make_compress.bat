@@ -27,6 +27,13 @@ if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
 )
+c:\dev\Python27\python.exe bin\png2arc.py -o build\screen4.bin data\gfx\torment_1bit_320_256.png 9
+if %ERRORLEVEL% neq 0 (
+	echo Failed to convert assets.
+	exit /b 1
+)
+
+
 echo Assembling code...
 bin\vasmarm_std_win32.exe -L build\compile.txt -m250 -Fvobj -opt-adr -o build\arc-check.o arc-check.asm
 

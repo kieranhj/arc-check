@@ -479,7 +479,7 @@ Anyway, don't worry about rewriting this unless the sequence dictates.
 
 TODO
 ~~~
-- Need to be able to skip forward to pattern.
+- Need to be able to skip forward to pattern. - DONE
 - Highlights for tunnel - grey ones spawned on notes?
 - Highlights on hover - light up layers in sequence bottom to top - fade length relative to note length.
 - More colours options - RED, BLUE

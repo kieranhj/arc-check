@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
@@ -19,9 +19,9 @@
 
 
 .if _SYNC_EDITOR
-.equ MaxFrames, 65536
+.equ _MaxFrames, 65536
 .else
-.equ MaxFrames, 4672                    ; for now!
+.equ _MaxFrames, 5984                    ; for now!
 .endif
 
 .equ MaxPatterns, 28
@@ -220,7 +220,8 @@ main_loop:
 
     ; Update frame counter.
     ldr r0, frame_counter
-    cmp r0, #MaxFrames
+    ldr r1, MaxFrames
+    cmp r0, r1
     addlt r0, r0, #1
     str r0, frame_counter
 
@@ -358,7 +359,7 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 	
-.if _ENABLE_MUSIC && 0
+.if _ENABLE_MUSIC && 1
 	swi OS_WriteI+32			; ' '
 
     ; read current tracker position
@@ -374,14 +375,14 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 
-	swi OS_WriteI+58			; ':'
+;	swi OS_WriteI+58			; ':'
 
-	mov r0, r3
-	adr r1, debug_string
-	mov r2, #8
-	swi OS_ConvertHex2
-	adr r0, debug_string
-	swi OS_WriteO
+;	mov r0, r3
+;	adr r1, debug_string
+;	mov r2, #8
+;	swi OS_ConvertHex2
+;	adr r0, debug_string
+;	swi OS_WriteO
 .endif
 	ldr pc, [sp], #4
 
@@ -873,6 +874,9 @@ last_last_dropped_frame:
 
 frame_counter:
     .long 0
+
+MaxFrames:
+    .long _MaxFrames
 
 palette_pending:
 	.long 0				; (optional) ptr to a block of palette data to set at vsync.
