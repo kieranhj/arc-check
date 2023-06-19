@@ -7,7 +7,7 @@
 .p2align 6
 .if _ENABLE_MUSIC
 music_data_no_adr:
-.incbin "data/music/chequered_past.mod"
+.incbin "data/music/chequered_past V2.mod"
 .endif
 
 ; ============================================================================
@@ -21,6 +21,9 @@ text_screen_2_no_adr:
 
 text_screen_3_no_adr:
 .incbin "build/screen3.bin"
+
+text_screen_4_no_adr:
+.incbin "build/screen4.bin"
 
 ; ============================================================================
 

@@ -18,21 +18,24 @@ seq_main_program:
     write_addr layer_colour_default, 0x0fff
 
     ; Wait for 250 frames
-    wait FramesPerPattern*12                                        ; will be one frame out...!
+    wait FramesPerPattern*20                                        ; will be one frame out...!
 
     ; Display overlay image
     set_draw_fn text_screen_plot
-    write_addr text_screen_data_p, text_screen_1_no_adr
+    write_addr text_screen_data_p, text_screen_1_no_adr             ; bitshifters logo
     write_addr layer_colour_start, Check_Layers_per_bitplane        ; don't set colours for layers on 'bottom' bitplane.
 
-    wait 2*FramesPerPattern
-    write_addr text_screen_data_p, text_screen_2_no_adr
+    wait 1*FramesPerPattern
+    write_addr text_screen_data_p, text_screen_4_no_adr             ; torment logo
 
-    wait 2*FramesPerPattern
-    write_addr text_screen_data_p, text_screen_3_no_adr
+    wait 1*FramesPerPattern
+    write_addr text_screen_data_p, text_screen_3_no_adr             ; greets
+
+    wait 1*FramesPerPattern
+    write_addr text_screen_data_p, text_screen_2_no_adr             ; credits
 
     ; Wait for 250 frames
-    wait 2*FramesPerPattern
+    wait 1*FramesPerPattern
 
     ; Back to all layers.
     set_draw_fn plot_checks_to_screen

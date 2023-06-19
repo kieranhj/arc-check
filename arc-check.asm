@@ -2,9 +2,9 @@
 ; Archimedes Checkerboard Challenge!
 ; ============================================================================
 
-.equ _DEBUG, 0
+.equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)

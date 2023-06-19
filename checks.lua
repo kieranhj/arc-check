@@ -41,6 +41,32 @@ primaryColour=PINK
 secondaryColour=GREY
 highlightColour=WHITE
 
+NOTES_SHORT={0,6,12,18}
+NOTES_LONG={0,6,12,18,24}
+
+PATTERNS = {}
+function initPatterns()
+    -- 1-4 intro.
+    PATTERNS[5]=NOTES_SHORT
+    PATTERNS[6]=NOTES_LONG
+    PATTERNS[7]=NOTES_SHORT
+    PATTERNS[8]=NOTES_LONG      -- high
+    PATTERNS[9]=NOTES_SHORT
+    PATTERNS[10]=NOTES_LONG
+    PATTERNS[11]=NOTES_SHORT
+    PATTERNS[12]=NOTES_LONG     -- high
+    -- 13 -> 16 drums kick in (repeated 4x) 
+    PATTERNS[17]=NOTES_SHORT
+    PATTERNS[18]=NOTES_LONG
+    PATTERNS[19]=NOTES_SHORT
+    PATTERNS[20]=NOTES_LONG     -- high
+    PATTERNS[21]=NOTES_SHORT
+    PATTERNS[22]=NOTES_LONG
+    PATTERNS[21]=NOTES_SHORT
+    PATTERNS[22]=NOTES_LONG     -- high
+    -- 23 -> 27 bass tune (repeated 4x)
+end
+
 globalFade=1.0
 
 function initLayers()
@@ -297,24 +323,23 @@ function part1(t, zStart, totalFrames) -- zoom towards mesh
     layerDist_FarMesh,
     {spacing=32, firstLayerZ=512},
     colourBipLayer,
-    {secondary_spacing=192,
-    bipFrames={
-        {t1=256,t2=16,wz=512+32},
-        {t1=256+64,t2=16,wz=512+96},
-        {t1=256+128,t2=16,wz=512+160},
-        {t1=256+160,t2=16,wz=512+224},
-        {t1=256+256,t2=16,wz=512+288},
-        {t1=256+320,t2=16,wz=512+352},
-    }})
+    {secondary_spacing=192})
  -- TODO: Sure we can do better than this for highlights!
- globalFade=1.0
+-- bipFrames={
+--    {t1=256,t2=16,wz=512+32},
+--    {t1=256+64,t2=16,wz=512+96},
+--    {t1=256+128,t2=16,wz=512+160},
+--    {t1=256+160,t2=16,wz=512+224},
+--    {t1=256+256,t2=16,wz=512+288},
+--    {t1=256+320,t2=16,wz=512+352},
+globalFade=1.0
 end
 
 function part2(t, zStart, totalFrames) -- circle tunnel
  local radius = 400 * math.sin(t/100)
  local sp = 2.0
  
- colsel={PINK,ORANGE,GREEN,PURPLE}
+ local colsel={PINK,ORANGE,GREEN,PURPLE}
 
  primaryColour = colsel[((t//framesPerPattern)%4)+1]
  moveCamera(camPath_Circle, t, sp, radius)
@@ -328,12 +353,19 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local sp = 1.0
     
     primaryColour = GREEN
+    local colsel={GREEN,PURPLE,PINK,ORANGE}
 
-    if (t > framesPerPattern) then
-        local d = (t-framesPerPattern)/100.0
-        if (d > 1.0) then d=1.0 end
-        primaryColour = colourLerp(GREEN, PURPLE, d)
-    end
+    local col1 = colsel[((t//100)%4)+1]
+    local col2 = colsel[(((t//100)+1)%4)+1]
+
+    --if (t > framesPerPattern) then
+    --    local d = (t-framesPerPattern)/100.0
+    --    if (d > 1.0) then d=1.0 end
+    --    primaryColour = colourLerp(GREEN, PURPLE, d)
+    --end
+
+    local d = (t%100)/100.0
+    primaryColour = colourLerp(col1, col2, d)
 
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16}, nil, {fadeDepth=160.0})
@@ -342,12 +374,16 @@ end
 
 function part4(t, zStart, totalFrames) -- backwards circular tunnel
     local radius = 400 * math.sin(t/100)
-    local sp = -1.0
+    local sp = -2.0
    
+    globalFade = 1.0
     primaryColour = PURPLE
+    local colsel={PINK,ORANGE,GREEN,PURPLE}
+    primaryColour = colsel[((frames()//(framesPerPattern/2))%4)+1]
+    
     moveCamera(camPath_Circle, t, sp, radius)
     updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=64})
-    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+    -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 function part5(t, zStart, totalFrames) -- hover over mesh
@@ -385,13 +421,20 @@ lastFrame=-1
 lastPlaying=-1
 function TIC()
  sequence = {
-    {fs=0,fn=part1,zs=-1},  -- was part1
-    {fs=framesPerPattern*2,fn=part2,zs=-1},
-    {fs=framesPerPattern*4,fn=part4,zs=-1},
-    {fs=framesPerPattern*6,fn=part3,zs=-1},
-    {fs=framesPerPattern*8,fn=part5,zs=-1},
-    {fs=framesPerPattern*10,fn=part6,zs=-1},
-    {fs=framesPerPattern*12,fn=part7,zs=-1},
+    {fs=0,fn=part1,zs=-1},                      -- fly to start [build up]
+    {fs=framesPerPattern*2,fn=part2,zs=-1},     -- circular tunnell [highlights 1]
+    {fs=framesPerPattern*8,fn=part5,zs=-1},     -- hover over [highlights 2]
+    {fs=framesPerPattern*12,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*12.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*13,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*13.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*14,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*14.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*15,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*15.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*16,fn=part6,zs=-1},    -- backwards circular [highlights]
+    {fs=framesPerPattern*20,fn=part7,zs=-1},    -- hover over moving [credits]
+    {fs=framesPerPattern*24,fn=part3,zs=-1},    -- tight tunnel [bass]
  }
 
  if (frames() < f) then
