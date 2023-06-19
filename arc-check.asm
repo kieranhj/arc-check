@@ -24,6 +24,8 @@
 .equ MaxFrames, 4672                    ; for now!
 .endif
 
+.equ MaxPatterns, 28
+
 ; ============================================================================
 
 ; TODO: Figure out why palette setting at vsync glitches with >2 buffers!
@@ -429,9 +431,34 @@ debug_controls:
 	SWI OS_Byte
 	CMP r1, #0xff
 	CMPEQ r2, #0xff
-	streqb r1, debug_play_step
+    bne .2
+	ldrb r0, debug_debounce_right
+	cmp r0, #0
+	bne .2
 
+    ; Do step.
+    mov r12, r1
+    mov r0, #-1
+    mov r1, #-1
+    swi QTM_Pos         ; read position.
+
+    cmp r0, #MaxPatterns
+    bge .20
+    add r0, r0, #1
+
+    ; Update frame counter to match.
+    adr r2, debug_pattern_to_frame
+    ldr r2, [r2, r0, lsl #2]
+    bl script_ffwd_to_frame
+
+    mov r1, #0
+    swi QTM_Pos         ; set position.
+
+    .20:
+    mov r1, r12
 	.2:
+    strb r1, debug_debounce_right
+
 	; Advance frame (without repeat):
 	MOV r0, #OSByte_ReadKey
 	MOV r1, #IKey_S
@@ -525,6 +552,9 @@ debug_debounce_r:
 debug_debounce_a:
 	.byte 0
 
+debug_debounce_right:
+    .byte 0
+
 debug_play_pause:
 	.byte _DEBUG_DEFAULT_PLAY_PAUSE
 
@@ -540,6 +570,42 @@ debug_show_rasters:
 	.p2align 2
 d_StopOnFrame:
 	.long _DEBUG_STOP_ON_FRAME
+
+.macro frame_for_pattern pat
+    .long \pat*64*4*50.0/60.0
+.endm
+
+debug_pattern_to_frame:
+    frame_for_pattern 0
+    frame_for_pattern 1
+    frame_for_pattern 2
+    frame_for_pattern 3
+    frame_for_pattern 4
+    frame_for_pattern 5
+    frame_for_pattern 6
+    frame_for_pattern 7
+    frame_for_pattern 8
+    frame_for_pattern 9
+    frame_for_pattern 10
+    frame_for_pattern 11
+    frame_for_pattern 12
+    frame_for_pattern 13
+    frame_for_pattern 14
+    frame_for_pattern 15
+    frame_for_pattern 16
+    frame_for_pattern 17
+    frame_for_pattern 18
+    frame_for_pattern 19
+    frame_for_pattern 20
+    frame_for_pattern 21
+    frame_for_pattern 22
+    frame_for_pattern 23
+    frame_for_pattern 24
+    frame_for_pattern 25
+    frame_for_pattern 26
+    frame_for_pattern 27
+    frame_for_pattern 28
+    frame_for_pattern 29
 .endif
 
 get_screen_addr:
@@ -819,9 +885,9 @@ screen_addr:
 ; Additional code modules
 ; ============================================================================
 
+.include "src/script.asm"
 .include "src/text-screen.asm"
 .include "src/check-rows.asm"
-.include "src/script.asm"
 
 .include "lib/mode9-palette.asm"
 

@@ -74,6 +74,23 @@ script_kill_all:
     add r12, r12, #Script_ContextSize
     blt .1
     mov pc, lr
+
+; R2=new frame counter.
+script_ffwd_to_frame:
+    stmfd sp!, {r0-r12, lr}
+
+    ldr r1, frame_counter
+    subs r9, r2, r1
+    ble .2
+    str r2, frame_counter
+
+    .1:
+    bl script_tick_all
+    subs r9, r9, #1
+    bne .1
+
+    .2:
+    ldmfd sp!, {r0-r12, pc}
 .endif
 
 ; R0=ptr to program.
