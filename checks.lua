@@ -147,13 +147,13 @@ function sortCameraLayers()
     end
     table.sort(cameraLayers, function (a,b) return a.z > b.z end)
 
-    for i=1,#cameraLayers-1 do
-        layer1=cameraLayers[i]
-        layer2=cameraLayers[i+1]
-        if (layer1.c.b > layer2.c.b ) then
-            debugPrintAllLayers(worldLayers)
-        end
-    end
+    --for i=1,#cameraLayers-1 do
+    --    layer1=cameraLayers[i]
+    --    layer2=cameraLayers[i+1]
+    --    if (layer1.c.b > layer2.c.b ) then
+    --        debugPrintAllLayers(worldLayers)
+    --    end
+    --end
 end
 
 function colourLerp(startColour, endColour, delta)
@@ -232,16 +232,16 @@ end
 function colourBipLayer(t, wz, layer_no, params)
     local col = primaryColour
 
-    if (wz % params.secondary_spacing == 0) then
-        col = secondaryColour
-    end
-
     if (params.bipFrames) then
+        --io.write(string.format("%d bips at t=%f\n",#params.bipFrames, t))
         for i=1,#params.bipFrames do
             bip=params.bipFrames[i]
-            if (t >= bip.t1 and t < (bip.t1+bip.t2) and bip.wz == wz) then
+            --io.write(string.format("layer_no=%d wz=%d bip.wz=%d\n", layer_no, wz, bip.wz))
+            if (t >= bip.t1 and t < (bip.t1+bip.t2) and bip.wz == math.modf(wz)) then
+                --io.write(string.format("bip! layer_no=%d wz=%d\n", layer_no, wz))
+
                 local d = (t - bip.t1) / bip.t2
-                col = colourLerp(highlightColour, col, d)
+                col = colourLerp(params.highlightCol, col, d)
             end
         end
     end
@@ -280,8 +280,12 @@ function updateWorldLayers(t, layerPathFn, pathParams, layerDistFn, distParams, 
                 c = colourFn(t, wz, i, colourParams)
             else
                 -- TODO: A better way of specifying the layer colour.
-                if (w.z % 192 == 0) then
-                    c = secondaryColour -- colourLerp(secondaryColour, BLACK, delta)
+                if(colourParams) then
+                    if(colourParams.secondarySpacing) then
+                        if (wz % colourParams.secondarySpacing == 0) then
+                            c = secondaryColour -- colourLerp(secondaryColour, BLACK, delta)
+                        end
+                    end
                 end
             end
 
@@ -318,10 +322,10 @@ function layerDist_NearMesh(wz, params)
 end
 
 function part1(t, zStart, totalFrames) -- zoom towards mesh
- local sp=2
- if (t < framesPerPattern) then sp=0.5
+ local sp=4.0
+ if (t < framesPerPattern) then sp=1.0
  elseif (t < 2*framesPerPattern) then
-   sp=0.5+1.5*((t-framesPerPattern)/framesPerPattern)
+   sp=1.0+3.0*((t-framesPerPattern)/framesPerPattern)
  end
 
  primaryColour=PINK
@@ -330,22 +334,14 @@ function part1(t, zStart, totalFrames) -- zoom towards mesh
     layerPath_Origin, nil,
     layerDist_FarMesh,
     {spacing=32, firstLayerZ=512},
-    colourBipLayer,
-    {secondary_spacing=192})
- -- TODO: Sure we can do better than this for highlights!
--- bipFrames={
---    {t1=256,t2=16,wz=512+32},
---    {t1=256+64,t2=16,wz=512+96},
---    {t1=256+128,t2=16,wz=512+160},
---    {t1=256+160,t2=16,wz=512+224},
---    {t1=256+256,t2=16,wz=512+288},
---    {t1=256+320,t2=16,wz=512+352},
-globalFade=1.0
+    nil,
+    {secondarySpacing=192})
+ globalFade=1.0
 end
 
 function part2(t, zStart, totalFrames) -- circle tunnel
  local radius = 400 * math.sin(t/100)
- local sp = 2.0
+ local sp = 4.0
  
  local colsp = framesPerPattern
  local colsel={GREEN,PURPLE,PINK,ORANGE}
@@ -364,14 +360,14 @@ function part2(t, zStart, totalFrames) -- circle tunnel
     end
  end
  moveCamera(camPath_Circle, t, sp, radius)
- updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32})
+ updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=32}, nil, {secondarySpacing=192})
 
  if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local radius = 200 * math.sin(t/100)
-    local sp = 1.0
+    local sp = 2.0
 
     local colsp = 50
     local colsel={GREEN,PURPLE,PINK,ORANGE,BLUE}
@@ -382,14 +378,14 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     primaryColour = colourLerp(col1, col2, d)
 
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+712+(totalFrames)*sp}, nil, {fadeDepth=160.0})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+712+(totalFrames)*sp}, nil, {fadeDepth=160.0, secondarySpacing=192})
     globalFade = 1.0
     -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 function part4(t, zStart, totalFrames) -- backwards circular tunnel
     local radius = 400 * math.sin(t/100)
-    local sp = -2.0
+    local sp = -3.0
    
     globalFade = 1.0
     primaryColour = PURPLE
@@ -397,8 +393,22 @@ function part4(t, zStart, totalFrames) -- backwards circular tunnel
     primaryColour = colsel[((frames()//(framesPerPattern/2))%4)+1]
     
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, {secondarySpacing=192})
     -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+end
+
+function part4a(t, zStart, totalFrames) -- backwards circular tunnel
+    local radius = 400 * math.sin(t/100)
+    local sp = -3.0
+   
+    globalFade = 1.0
+    primaryColour = PURPLE
+    local colsel={PINK,ORANGE,GREEN,PURPLE}
+    primaryColour = colsel[((frames()//(framesPerPattern/2))%4)+1]
+    
+    moveCamera(camPath_Circle, t, sp, radius)
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, {secondarySpacing=192})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 -- return colour for layer
@@ -410,15 +420,16 @@ function hoverColours(t, wz, i, colourParams)
     local thisPatNotes = PATTERNS[pattern]
 
     if (thisPatNotes) then
-        local j = 6 - i     
+        local j = colourParams.topLayer - i  
         local noteLen = 50.0
 
         if (thisPatNotes[j]) then
             local timeSinceTrigger = patTime - thisPatNotes[j]*framesPerRow
             if(j==5) then noteLen = 100.0 end
             if(timeSinceTrigger>0 and timeSinceTrigger<noteLen) then
+                -- io.write(string.format("layer=%d note=%d wz=%d\n", i, j, wz))
                 local d=timeSinceTrigger/noteLen
-                return colourLerp(AQUA, primaryColour, d)
+                return colourLerp(colourParams.highlightCol, primaryColour, d)
             end
         end
     end
@@ -447,33 +458,57 @@ function part5(t, zStart, totalFrames) -- hover over mesh
     end
 
     moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
-    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, hoverColours, {fadeDepth=320.0})
+    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, hoverColours, {fadeDepth=320.0, topLayer=6, highlightCol=AQUA})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 function part6(t, zStart, totalFrames) -- lissajous forward motion
+    if (t==0) then camPos.z=0.0 end
+
     local radius = 400
-    local sp = 0.5
+    local sp = 1.0
 
-    local colsp = framesPerPattern
-    local colsel={PINK,ORANGE,GREEN,PURPLE}
-    local col1 = colsel[((t//colsp)%4)+1]
-    local col2 = colsel[(((t//colsp)+1)%4)+1]
-    local framesToNextCol = (t%colsp)
+    local col1 = ORANGE
+    local col2 = GREEN
     local colft = 100
+    local coltrig = framesPerPattern + 24*framesPerRow  -- note 5 on second pattern
+    local tToTrig = t - coltrig
 
-    if (t < colsp) then
-        primaryColour = ORANGE
+    if (tToTrig < 0) then
+        primaryColour = col1
      else
-        if (framesToNextCol < colft) then
-            primaryColour = colourLerp(col1, col2, framesToNextCol/colft)
+        if (tToTrig < colft) then
+            primaryColour = colourLerp(col1, col2, tToTrig/colft)
         else
             primaryColour = col2
         end
     end
 
     moveCamera(camPath_LissajousOverDist, t, sp, radius, 1.1, 1.6, 0, 0)
-    updateWorldLayers(t, layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96})
+    updateWorldLayers(t, layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96}, colourBipLayer,
+    {fadeDepth=768.0, topLayer=6, highlightCol=WHITE, bipFrames={
+        {t1=0*framesPerRow,t2=50,wz=96*5},
+        {t1=6*framesPerRow,t2=50,wz=96*4},
+        {t1=12*framesPerRow,t2=50,wz=96*3},
+        {t1=18*framesPerRow,t2=50,wz=96*2},
+
+        {t1=framesPerPattern+0*framesPerRow,t2=50,wz=96*8},
+        {t1=framesPerPattern+6*framesPerRow,t2=50,wz=96*7},
+        {t1=framesPerPattern+12*framesPerRow,t2=50,wz=96*6},
+        {t1=framesPerPattern+18*framesPerRow,t2=50,wz=96*5},
+        {t1=framesPerPattern+24*framesPerRow,t2=100,wz=96*4},
+
+        {t1=framesPerPattern*2+0*framesPerRow,t2=50,wz=96*10},
+        {t1=framesPerPattern*2+6*framesPerRow,t2=50,wz=96*9},
+        {t1=framesPerPattern*2+12*framesPerRow,t2=50,wz=96*8},
+        {t1=framesPerPattern*2+18*framesPerRow,t2=50,wz=96*7},
+
+        {t1=framesPerPattern*3+0*framesPerRow,t2=50,wz=96*12},
+        {t1=framesPerPattern*3+6*framesPerRow,t2=50,wz=96*11},
+        {t1=framesPerPattern*3+12*framesPerRow,t2=50,wz=96*10},
+        {t1=framesPerPattern*3+18*framesPerRow,t2=50,wz=96*9},
+        {t1=framesPerPattern*3+24*framesPerRow,t2=100,wz=96*8}
+    }})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -499,7 +534,7 @@ function part7(t, zStart, totalFrames) -- hover over moving mesh
     end
     
     moveCamera(camPath_AlongZ, t, -0.1)
-    updateWorldLayers(t, layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48})
+    updateWorldLayers(t, layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48}, nil, {secondarySpacing=192})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -518,30 +553,34 @@ function TIC()
     {fs=framesPerPattern*14,fn=part4,zs=-1},    -- drum repeats
     {fs=framesPerPattern*14.5,fn=part4,zs=-1},    -- drum repeats
     {fs=framesPerPattern*15,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*15.5,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*16,fn=part6,zs=-1},    -- backwards circular [highlights]
+    {fs=framesPerPattern*15.5,fn=part4a,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*16,fn=part6,zs=-1},    -- lissajous forwards [highlights]
     {fs=framesPerPattern*20,fn=part7,zs=-1},    -- hover over moving [credits]
     {fs=framesPerPattern*24,fn=part3,zs=-1},    -- tight tunnel [bass]
  }
+ 
+ df=frames()-f
 
- if (frames() < f) then
+ if (df < 0) then
   camPos={x=0.0,y=0.0,z=0.0}
  end
-
- f=frames()
  
- for i=1,#sequence do
-    seq=sequence[i]
-    next=sequence[i+1]
-    if (next) then fe=next.fs else fe=framesPerPattern*28 end
-    if (f >= seq.fs and f < fe) then
-        local t=f-seq.fs
-        if (t==0) then seq.zs=camPos.z end
-        if (seq.fn) then seq.fn(t, seq.zs, fe-seq.fs) end
+ if (df~=0) then
+    f=frames()
+    
+    for i=1,#sequence do
+        seq=sequence[i]
+        next=sequence[i+1]
+        if (next) then fe=next.fs else fe=framesPerPattern*28 end
+        if (f >= seq.fs and f < fe) then
+            local t=(f-seq.fs)  -- math.floor
+            if (math.floor(t)==0) then camPos.z=0 end -- seq.zs=camPos.z end
+            if (seq.fn) then seq.fn(t, seq.zs, fe-seq.fs) end
+        end
     end
- end
 
- sortCameraLayers()
+    sortCameraLayers()
+ end
 
  if (f~=lastFrame) then
     if (f>lastFrame) then

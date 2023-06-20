@@ -19,7 +19,7 @@
 
 
 .if _SYNC_EDITOR
-.equ _MaxFrames, 65536
+.equ _MaxFrames, 5984   ;65536
 .else
 .equ _MaxFrames, 5984                    ; for now!
 .endif
@@ -221,8 +221,9 @@ main_loop:
     ; Update frame counter.
     ldr r0, frame_counter
     ldr r1, MaxFrames
+    add r0, r0, #1
     cmp r0, r1
-    addlt r0, r0, #1
+    movge r0, #0
     str r0, frame_counter
 
 main_loop_skip_tick:
