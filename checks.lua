@@ -3,8 +3,8 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = io.open("lua_frames.bin", "wb")
-exportBin:setvbuf("no")
+exportBin = nil -- io.open("lua_frames.bin", "wb")
+-- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
 debugFile:setvbuf("no")
@@ -37,6 +37,7 @@ ORANGE={r=0xf,g=0xa,b=0x0}
 PURPLE={r=0xc,g=0x6,b=0xf}
 GREY={r=0x8,g=0x8,b=0x8}
 BLUE={r=0x0,g=0x6,b=0xf}
+AQUA={r=0x0,g=0xe,b=0xf}
 
 primaryColour=PINK
 secondaryColour=GREY
@@ -67,6 +68,7 @@ function initPatterns()
     PATTERNS[22]=NOTES_LONG     -- high
     -- 23 -> 27 bass tune (repeated 4x)
 end
+initPatterns()
 
 globalFade=1.0
 
@@ -399,13 +401,53 @@ function part4(t, zStart, totalFrames) -- backwards circular tunnel
     -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
+-- return colour for layer
+function hoverColours(t, wz, i, colourParams)
+    local pattern = (frames()//framesPerPattern)+1
+    local patTime = frames()%framesPerPattern
+    local row = math.floor(patTime/framesPerRow)
+
+    local thisPatNotes = PATTERNS[pattern]
+
+    if (thisPatNotes) then
+        local j = 6 - i     
+        local noteLen = 50.0
+
+        if (thisPatNotes[j]) then
+            local timeSinceTrigger = patTime - thisPatNotes[j]*framesPerRow
+            if(j==5) then noteLen = 100.0 end
+            if(timeSinceTrigger>0 and timeSinceTrigger<noteLen) then
+                local d=timeSinceTrigger/noteLen
+                return colourLerp(AQUA, primaryColour, d)
+            end
+        end
+    end
+
+    return primaryColour
+end
+
 function part5(t, zStart, totalFrames) -- hover over mesh
     local radius = 800
     camPos.z=0.0
 
-    primaryColour = BLUE
+    local col1 = BLUE
+    local col2 = PURPLE
+    local colft = 100
+    local coltrig = framesPerPattern + 24*framesPerRow  -- note 5 on second pattern
+    local tToTrig = t - coltrig
+
+    if (tToTrig < 0) then
+        primaryColour = col1
+     else
+        if (tToTrig < colft) then
+            primaryColour = colourLerp(col1, col2, tToTrig/colft)
+        else
+            primaryColour = col2
+        end
+    end
+
     moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
-    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, nil, {fadeDepth=320.0})
+    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, hoverColours, {fadeDepth=320.0})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -440,14 +482,14 @@ function part7(t, zStart, totalFrames) -- hover over moving mesh
     camPos.z=0.0
 
     local colsp = framesPerPattern
-    local colsel={ORANGE,GREEN,PURPLE,PINK}
+    local colsel={ORANGE,BLUE,PURPLE,PINK}
     local col1 = colsel[((t//colsp)%4)+1]
     local col2 = colsel[(((t//colsp)+1)%4)+1]
     local framesToNextCol = (t%colsp)
     local colft = 50
 
     if (t < colsp) then
-        primaryColour = GREEN
+        primaryColour = BLUE
      else
         if (framesToNextCol < colft) then
             primaryColour = colourLerp(col1, col2, framesToNextCol/colft)
