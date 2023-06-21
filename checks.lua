@@ -39,7 +39,7 @@ GREY={r=0x8,g=0x8,b=0x8}
 BLUE={r=0x0,g=0x6,b=0xf}
 AQUA={r=0x0,g=0xe,b=0xf}
 YELLOW={r=0xf,g=0xf,b=0xa}
-RED={r=0xf,g=0x0,b=0x4}
+RED={r=0xf,g=0x0,b=0x6}
 
 primaryColour=PINK
 secondaryColour=GREY
@@ -341,6 +341,24 @@ function part1(t, zStart, totalFrames) -- zoom towards mesh
  globalFade=1.0
 end
 
+function colourSecondaryBeat(t, wz, layer_no, params)
+    if (wz % params.secondarySpacing == 0) then
+        local beatFrames = 8*framesPerRow
+        local col1 = secondaryColour
+        local col2 = params.beatCol
+        local tSinceBeat = t%beatFrames
+        local beatFade = 10
+
+        if (tSinceBeat < beatFade) then
+            return colourLerp(col1, col2, tSinceBeat/beatFade)
+        else
+            return col1 -- colourLerp(secondaryColour, BLACK, delta)
+        end
+    end
+
+    return primaryColour
+end
+
 function part2(t, zStart, totalFrames) -- circle tunnel
  local radius = 400 * math.sin(t/100)
  local sp = 4.0
@@ -372,15 +390,15 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     local sp = 2.0
 
     local colsp = 50
-    local colsel={GREEN,PURPLE,PINK,ORANGE,BLUE}
-    local col1 = colsel[((t//colsp)%5)+1]
-    local col2 = colsel[(((t//colsp)+1)%5)+1]
+    local colsel={GREEN,PURPLE,PINK,ORANGE,BLUE,RED,YELLOW}
+    local col1 = colsel[((t//colsp)%7)+1]
+    local col2 = colsel[(((t//colsp)+1)%7)+1]
 
     local d = (t%colsp)/colsp
     primaryColour = colourLerp(col1, col2, d)
 
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+712+(totalFrames)*sp}, nil, {fadeDepth=160.0, secondarySpacing=192})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+712+(totalFrames)*sp}, nil, {fadeDepth=160.0, beatCol=WHITE})
     globalFade = 1.0
     -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
@@ -390,12 +408,11 @@ function part4(t, zStart, totalFrames) -- backwards circular tunnel
     local sp = -3.0
    
     globalFade = 1.0
-    primaryColour = PURPLE
-    local colsel={PINK,ORANGE,GREEN,PURPLE}
+    local colsel={GREEN,PURPLE,PINK,ORANGE}
     primaryColour = colsel[((frames()//(framesPerPattern/2))%4)+1]
     
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, {secondarySpacing=192})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, nil)
     -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -404,12 +421,11 @@ function part4a(t, zStart, totalFrames) -- backwards circular tunnel
     local sp = -3.0
    
     globalFade = 1.0
-    primaryColour = PURPLE
-    local colsel={PINK,ORANGE,GREEN,PURPLE}
+    local colsel={GREEN,PURPLE,PINK,ORANGE}
     primaryColour = colsel[((frames()//(framesPerPattern/2))%4)+1]
     
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, {secondarySpacing=192})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, nil)
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -422,16 +438,31 @@ function hoverColours(t, wz, i, colourParams)
     local thisPatNotes = PATTERNS[pattern]
 
     if (thisPatNotes) then
-        local j = colourParams.topLayer - i  
-        local noteLen = 50.0
+        if (colourParams.justLayer) then
+            if (colourParams.justLayer == i) then
+                for j=1,#thisPatNotes do
+                    local timeSinceTrigger = patTime - thisPatNotes[j]*framesPerRow
+                    local noteLen = 25.0
+                    if(j==5) then noteLen = 50.0 end
+                    if(timeSinceTrigger>0 and timeSinceTrigger<noteLen) then
+                        -- io.write(string.format("layer=%d note=%d wz=%d\n", i, j, wz))
+                        local d=timeSinceTrigger/noteLen
+                        return colourLerp(colourParams.highlightCol, primaryColour, d)
+                    end
+                end
+            end
+        else
+            local j = colourParams.topLayer - i  
+            local noteLen = 50.0
 
-        if (thisPatNotes[j]) then
-            local timeSinceTrigger = patTime - thisPatNotes[j]*framesPerRow
-            if(j==5) then noteLen = 100.0 end
-            if(timeSinceTrigger>0 and timeSinceTrigger<noteLen) then
-                -- io.write(string.format("layer=%d note=%d wz=%d\n", i, j, wz))
-                local d=timeSinceTrigger/noteLen
-                return colourLerp(colourParams.highlightCol, primaryColour, d)
+            if (thisPatNotes[j]) then
+                local timeSinceTrigger = patTime - thisPatNotes[j]*framesPerRow
+                if(j==5) then noteLen = 100.0 end
+                if(timeSinceTrigger>0 and timeSinceTrigger<noteLen) then
+                    -- io.write(string.format("layer=%d note=%d wz=%d\n", i, j, wz))
+                    local d=timeSinceTrigger/noteLen
+                    return colourLerp(colourParams.highlightCol, primaryColour, d)
+                end
             end
         end
     end
@@ -516,7 +547,7 @@ end
 
 function part7(t, zStart, totalFrames) -- hover over moving mesh
     local radius = 600
-    camPos.z=0.0
+    --camPos.z=0.0
 
     local colsp = framesPerPattern
     local colsel={ORANGE,BLUE,PURPLE,PINK}
@@ -535,8 +566,8 @@ function part7(t, zStart, totalFrames) -- hover over moving mesh
         end
     end
     
-    moveCamera(camPath_AlongZ, t, -0.1)
-    updateWorldLayers(t, layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=48, firstLayerZ=48}, nil, {secondarySpacing=192})
+    moveCamera(camPath_AlongZ, t, -0.05)
+    updateWorldLayers(t, layerPath_LissajousOverTime, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0,t=t}, layerDist_FarMesh, {spacing=32, firstLayerZ=48}, nil, nil)
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
