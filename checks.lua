@@ -38,13 +38,15 @@ PURPLE={r=0xc,g=0x6,b=0xf}
 GREY={r=0x8,g=0x8,b=0x8}
 BLUE={r=0x0,g=0x6,b=0xf}
 AQUA={r=0x0,g=0xe,b=0xf}
+YELLOW={r=0xf,g=0xf,b=0xa}
+RED={r=0xf,g=0x0,b=0x4}
 
 primaryColour=PINK
 secondaryColour=GREY
 highlightColour=WHITE
 
-NOTES_SHORT={0,6,12,18}
-NOTES_LONG={0,6,12,18,24}
+NOTES_SHORT={0,12,6,18}
+NOTES_LONG={0,12,6,18,24}
 
 PATTERNS = {}
 function initPatterns()
@@ -468,8 +470,8 @@ function part6(t, zStart, totalFrames) -- lissajous forward motion
     local radius = 400
     local sp = 1.0
 
-    local col1 = ORANGE
-    local col2 = GREEN
+    local col1 = PURPLE
+    local col2 = RED
     local colft = 100
     local coltrig = framesPerPattern + 24*framesPerRow  -- note 5 on second pattern
     local tToTrig = t - coltrig
@@ -486,26 +488,26 @@ function part6(t, zStart, totalFrames) -- lissajous forward motion
 
     moveCamera(camPath_LissajousOverDist, t, sp, radius, 1.1, 1.6, 0, 0)
     updateWorldLayers(t, layerPath_LissajousOverDist, {radius=radius,xf=1.1,yf=1.6,xo=0.0,yo=0.0}, layerDist_Regular, {spacing=96}, colourBipLayer,
-    {fadeDepth=768.0, topLayer=6, highlightCol=WHITE, bipFrames={
+    {fadeDepth=768.0, topLayer=6, highlightCol=YELLOW, bipFrames={
         {t1=0*framesPerRow,t2=50,wz=96*5},
-        {t1=6*framesPerRow,t2=50,wz=96*4},
-        {t1=12*framesPerRow,t2=50,wz=96*3},
+        {t1=6*framesPerRow,t2=50,wz=96*3},
+        {t1=12*framesPerRow,t2=50,wz=96*4}, -- swapped!
         {t1=18*framesPerRow,t2=50,wz=96*2},
 
         {t1=framesPerPattern+0*framesPerRow,t2=50,wz=96*8},
-        {t1=framesPerPattern+6*framesPerRow,t2=50,wz=96*7},
-        {t1=framesPerPattern+12*framesPerRow,t2=50,wz=96*6},
+        {t1=framesPerPattern+6*framesPerRow,t2=50,wz=96*6},
+        {t1=framesPerPattern+12*framesPerRow,t2=50,wz=96*7},
         {t1=framesPerPattern+18*framesPerRow,t2=50,wz=96*5},
         {t1=framesPerPattern+24*framesPerRow,t2=100,wz=96*4},
 
         {t1=framesPerPattern*2+0*framesPerRow,t2=50,wz=96*10},
-        {t1=framesPerPattern*2+6*framesPerRow,t2=50,wz=96*9},
-        {t1=framesPerPattern*2+12*framesPerRow,t2=50,wz=96*8},
+        {t1=framesPerPattern*2+6*framesPerRow,t2=50,wz=96*8},
+        {t1=framesPerPattern*2+12*framesPerRow,t2=50,wz=96*9},
         {t1=framesPerPattern*2+18*framesPerRow,t2=50,wz=96*7},
 
         {t1=framesPerPattern*3+0*framesPerRow,t2=50,wz=96*12},
-        {t1=framesPerPattern*3+6*framesPerRow,t2=50,wz=96*11},
-        {t1=framesPerPattern*3+12*framesPerRow,t2=50,wz=96*10},
+        {t1=framesPerPattern*3+6*framesPerRow,t2=50,wz=96*10},
+        {t1=framesPerPattern*3+12*framesPerRow,t2=50,wz=96*11},
         {t1=framesPerPattern*3+18*framesPerRow,t2=50,wz=96*9},
         {t1=framesPerPattern*3+24*framesPerRow,t2=100,wz=96*8}
     }})
