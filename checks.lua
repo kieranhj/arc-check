@@ -398,7 +398,7 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     primaryColour = colourLerp(col1, col2, d)
 
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+712+(totalFrames)*sp}, nil, {fadeDepth=160.0, beatCol=WHITE})
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+(totalFrames)*sp-512}, nil, {fadeDepth=160.0, beatCol=WHITE})
     globalFade = 1.0
     -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
@@ -604,7 +604,7 @@ function TIC()
     for i=1,#sequence do
         seq=sequence[i]
         next=sequence[i+1]
-        if (next) then fe=next.fs else fe=framesPerPattern*28 end
+        if (next) then fe=next.fs else fe=framesPerPattern*30 end
         if (f >= seq.fs and f < fe) then
             local t=(f-seq.fs)  -- math.floor
             if (math.floor(t)==0) then camPos.z=0 end -- seq.zs=camPos.z end

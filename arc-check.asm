@@ -19,9 +19,9 @@
 
 
 .if _SYNC_EDITOR
-.equ _MaxFrames, 5984   ;65536
+.equ _MaxFrames, 6400   ;65536
 .else
-.equ _MaxFrames, 5984                    ; for now!
+.equ _MaxFrames, 6400   ;5984                    ; for now!
 .endif
 
 .equ MaxPatterns, 28

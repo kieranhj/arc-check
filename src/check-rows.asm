@@ -639,6 +639,15 @@ plot_bitplane_1_to_screen_and_mask:
     .error "Expected Screen_Stride to be 160."
     .endif
 
+    .if 1
+    ldr r0, text_screen_top
+    cmp r11, r0
+    blt .10
+    ldr r0, text_screen_bottom
+    cmp r11, r0
+    bgt .10
+    .endif
+
     ; 'Blit' to screen from r9 to r12.
 .rept Screen_Stride / 16
     ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
@@ -670,12 +679,21 @@ plot_bitplane_1_to_screen_and_mask:
 .endr
     ; Trashes r0-r7 (r11, r14)
 
+.9:
     ; Next scanline.
     add r11, r11, #1
     cmp r11, #Screen_Height
     bne .8
 
     ldr pc, [sp], #4
+
+.10:
+.rept Screen_Stride / 16
+    ldmia r9!, {r0-r3}      ; load 4 words of top layers (top bits set, so 0b11aa11bb11cc...)
+    stmia r12!, {r0-r3}
+.endr
+    add r8, r8, #Screen_Stride
+    b .9
 
 ; ========================================================================
 

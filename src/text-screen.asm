@@ -9,9 +9,42 @@ text_screen_colour_word:
     .long 0x33333333            ; or 0x77777777
 
 text_screen_plot:
+    str lr, [sp, #-4]!
     ldr r8, text_screen_data_p
     ldr r10, text_screen_colour_word
-    b plot_bitplane_1_to_screen_and_mask
+    bl plot_bitplane_1_to_screen_and_mask
+
+    ldr r0, text_screen_top
+    ldr r1, text_screen_top_dir
+    add r0, r0, r1
+    cmp r0, #0
+    movlt r0, #0
+    cmp r0, #255
+    movgt r0, #255
+    str r0, text_screen_top
+
+    ldr r0, text_screen_bottom
+    ldr r1, text_screen_bottom_dir
+    add r0, r0, r1
+    cmp r0, #0
+    movlt r0, #0
+    cmp r0, #255
+    movgt r0, #255
+    str r0, text_screen_bottom
+
+    ldr pc, [sp], #4
+
+text_screen_top:
+    .long 0
+
+text_screen_top_dir:
+    .long 0
+
+text_screen_bottom:
+    .long 255
+
+text_screen_bottom_dir:
+    .long 0
 
 .if 0
 ; R12=screen addr
