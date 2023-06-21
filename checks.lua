@@ -3,7 +3,7 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = nil -- io.open("lua_frames.bin", "wb")
+exportBin = io.open("lua_frames.bin", "wb")
 -- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")

@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
@@ -38,6 +38,12 @@
 .equ Screen_Stride, Screen_Width/Screen_PixelsPerByte
 .equ Screen_Bytes, Screen_Stride*Screen_Height
 .equ Mode_Bytes, Screen_Stride*Mode_Height
+
+
+.equ StereoPos_Ch1, -127                ; full left
+.equ StereoPos_Ch2, +127                ; full right
+.equ StereoPos_Ch3, 0                   ; centre
+.equ StereoPos_Ch4, 0                   ; centre
 
 ; ============================================================================
 
@@ -109,6 +115,21 @@ main:
 
 .if _ENABLE_MUSIC
 	; QTM Init.
+    mov r0, #1
+    mov r1, #StereoPos_Ch1
+    swi QTM_Stereo
+
+    mov r0, #2
+    mov r1, #StereoPos_Ch2
+    swi QTM_Stereo
+
+    mov r0, #3
+    mov r1, #StereoPos_Ch3
+    swi QTM_Stereo
+
+    mov r0, #4
+    mov r1, #StereoPos_Ch4
+    swi QTM_Stereo
 
 	; Load module
 	mov r0, #0
@@ -133,6 +154,9 @@ main:
 	ble .1
 
 	; EARLY INITIALISATION HERE! (Tables etc.)
+
+    ldr r0, frame_counter
+    bl luapod_set_sync_time
 
 	; Make buffers.
 	bl check_rows_init
