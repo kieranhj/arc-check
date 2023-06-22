@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
@@ -19,9 +19,9 @@
 
 
 .if _SYNC_EDITOR
-.equ _MaxFrames, 6400   ;65536
+.equ _MaxFrames, 7680   ;65536
 .else
-.equ _MaxFrames, 6400   ;5984                    ; for now!
+.equ _MaxFrames, 7680
 .endif
 
 .equ MaxPatterns, 28
@@ -42,8 +42,8 @@
 
 .equ StereoPos_Ch1, -127                ; full left
 .equ StereoPos_Ch2, +127                ; full right
-.equ StereoPos_Ch3, 0                   ; centre
-.equ StereoPos_Ch4, 0                   ; centre
+.equ StereoPos_Ch3, +32                 ; off centre R
+.equ StereoPos_Ch4, -32                 ; off centre L
 
 ; ============================================================================
 

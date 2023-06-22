@@ -7,7 +7,7 @@
 .p2align 6
 .if _ENABLE_MUSIC
 music_data_no_adr:
-.incbin "data/music/chequered_past V2.mod"
+.incbin "data/music/chequered_past V3.mod"
 .endif
 
 ; ============================================================================

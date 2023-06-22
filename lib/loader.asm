@@ -51,22 +51,52 @@ main:
     ; Call decompressor.
     mov r0, r9                      ; source
     mov r1, #0x8000                 ; destination
-    mov r2, #0                      ; no callback
+    adr r2, callback
+    adr r3, reloc_start
+    sub r2, r2, r3
+    ldr r3, endofram
+    add r2, r2, r3                  ; callback fn
+    mov r3, #0                      ; callback arg
     sub r9, r8, #STACK_SIZE + NUM_CONTEXTS*4               ; context
     mov sp, r8                      ; reset stack top
     mov pc, r8                      ; jump to reloc
-
 
 filename:
 	.byte "<Demo$Dir>.Demo",0
 	.p2align 2
 
 endofram:
-    .long 0x8000 + _WIMPSLOT - (reloc_end - reloc_start)
+    .long 0x8000 + _WIMPSLOT - (reloc_end - reloc_start) - 4
 
 reloc_start:
 	bl ShrinklerDecompress
     mov pc, #0x8000
+
+; TODO: Print text that leaves N spaces between >....< for progress.
+
+; R0=bytes written
+; R1=callback arg
+callback:
+    movs r1, r0, lsl #19            ; every 8k
+    movne pc, lr
+.if 0
+    adr r1, palette
+    mov r0, r0, lsr #8
+    strb r0, [r1, #2]
+    mov r0, r0, lsr #4
+    strb r0, [r1, #3]
+    mov r0, r0, lsr #4
+    strb r0, [r1, #4]
+    mov r0, #12
+    swi OS_Word
+.else
+    swi OS_WriteI+'.'
+.endif
+    mov pc, lr
+
+palette:
+    .byte 24, 24, 0, 0, 0
+    .p2align 2
 
 .include "../lib/arc-shrinkler.asm"
 

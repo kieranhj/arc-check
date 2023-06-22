@@ -10,7 +10,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo Converting assets...
-c:\dev\Python27\python.exe bin\png2arc.py -o build\screen1.bin data\gfx\bitshifters.png 9
+c:\dev\Python27\python.exe bin\png2arc.py -o build\screen1.bin data\gfx\bitshifters_updated__logo_1bit_320_256.png 9
 if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
@@ -59,7 +59,7 @@ if %ERRORLEVEL% neq 0 (
 
 echo Shrinkling exe...
 rem bin\lz4.exe build\arc-check.bin
-bin\shrinkler.exe -d -b -p -z build\arc-check.bin build\arc-check.shri
+bin\shrinkler.exe -d -b -p -z -r 200000 -1 build\arc-check.bin build\arc-check.shri
 
 if %ERRORLEVEL% neq 0 (
 	echo Failed to compress exe.

@@ -3,7 +3,7 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = io.open("lua_frames.bin", "wb")
+exportBin = nil -- io.open("lua_frames.bin", "wb")
 -- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
@@ -66,9 +66,14 @@ function initPatterns()
     PATTERNS[20]=NOTES_LONG     -- high
     PATTERNS[21]=NOTES_SHORT
     PATTERNS[22]=NOTES_LONG
-    PATTERNS[21]=NOTES_SHORT
-    PATTERNS[22]=NOTES_LONG     -- high
-    -- 23 -> 27 bass tune (repeated 4x)
+    PATTERNS[23]=NOTES_SHORT
+    PATTERNS[24]=NOTES_LONG     -- high
+    -- 25 -> 28 bass tune (repeated 4x)
+    PATTERNS[29]=NOTES_SHORT
+    PATTERNS[30]=NOTES_LONG
+    PATTERNS[31]=NOTES_SHORT
+    PATTERNS[32]=NOTES_LONG     -- high
+    -- 33 -> 36 bass tune (repeated 4x)
 end
 initPatterns()
 
@@ -398,9 +403,8 @@ function part3(t, zStart, totalFrames) -- tight circlular tunnel
     primaryColour = colourLerp(col1, col2, d)
 
     moveCamera(camPath_Circle, t, sp, radius)
-    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_NearMesh, {spacing=16, lastLayerZ=zStart+(totalFrames)*sp-512}, nil, {fadeDepth=160.0, beatCol=WHITE})
-    globalFade = 1.0
-    -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=16}, nil, {fadeDepth=160.0, beatCol=WHITE})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
 function part4(t, zStart, totalFrames) -- backwards circular tunnel
@@ -590,6 +594,15 @@ function TIC()
     {fs=framesPerPattern*16,fn=part6,zs=-1},    -- lissajous forwards [highlights]
     {fs=framesPerPattern*20,fn=part7,zs=-1},    -- hover over moving [credits]
     {fs=framesPerPattern*24,fn=part3,zs=-1},    -- tight tunnel [bass]
+    {fs=framesPerPattern*28,fn=part5,zs=-1},     -- hover over [highlights 3]
+    {fs=framesPerPattern*32,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*32.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*33,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*33.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*34,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*34.5,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*35,fn=part4,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*35.5,fn=part4a,zs=-1},    -- drum repeats
  }
  
  df=frames()-f
@@ -604,7 +617,7 @@ function TIC()
     for i=1,#sequence do
         seq=sequence[i]
         next=sequence[i+1]
-        if (next) then fe=next.fs else fe=framesPerPattern*30 end
+        if (next) then fe=next.fs else fe=framesPerPattern*36 end
         if (f >= seq.fs and f < fe) then
             local t=(f-seq.fs)  -- math.floor
             if (math.floor(t)==0) then camPos.z=0 end -- seq.zs=camPos.z end
