@@ -3,7 +3,7 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = nil -- io.open("lua_frames.bin", "wb")
+exportBin = io.open("lua_frames.bin", "wb")
 -- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
@@ -433,6 +433,31 @@ function part4a(t, zStart, totalFrames) -- backwards circular tunnel
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
+function part4b(t, zStart, totalFrames) -- backwards circular tunnel
+    local radius = 600 * math.sin(t/50)
+    local sp = -3.0
+   
+    globalFade = 1.0
+    primaryColour = PINK
+    
+    moveCamera(camPath_Circle, t, sp, radius)
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_FarMesh, {firstLayerZ=0, spacing=48}, nil, nil)
+    -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+end
+
+function part4c(t, zStart, totalFrames) -- backwards circular tunnel
+    local radius = 600 * math.sin(t/50)
+    local sp = -3.0
+   
+    globalFade = 1.0
+    local colsel={RED,ORANGE,YELLOW,GREY,BLUE,PURPLE}
+    primaryColour = colsel[((frames()//(framesPerPattern/2))%6)+1]
+    
+    moveCamera(camPath_Circle, t, sp, radius)
+    updateWorldLayers(t, layerPath_Circle, {radius=radius}, layerDist_Regular, {spacing=48}, nil, {secondarySpacing=192})
+    -- if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+end
+
 -- return colour for layer
 function hoverColours(t, wz, i, colourParams)
     local pattern = (frames()//framesPerPattern)+1
@@ -459,9 +484,13 @@ function hoverColours(t, wz, i, colourParams)
             local j = colourParams.topLayer - i  
             local noteLen = 50.0
 
+            if (colourParams.fadeTime) then
+                noteLen = colourParams.fadeTime
+            end
+
             if (thisPatNotes[j]) then
                 local timeSinceTrigger = patTime - thisPatNotes[j]*framesPerRow
-                if(j==5) then noteLen = 100.0 end
+                if(j==5) then noteLen = noteLen * 2 end
                 if(timeSinceTrigger>0 and timeSinceTrigger<noteLen) then
                     -- io.write(string.format("layer=%d note=%d wz=%d\n", i, j, wz))
                     local d=timeSinceTrigger/noteLen
@@ -496,6 +525,34 @@ function part5(t, zStart, totalFrames) -- hover over mesh
 
     moveCamera(camPath_LissajousOverTime, t, 0.1, radius, 1.5, 1.0, 0.0, 0.0)
     updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, hoverColours, {fadeDepth=320.0, topLayer=6, highlightCol=AQUA})
+    if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
+end
+
+function part5a(t, zStart, totalFrames) -- hover over mesh
+    local radius = 800
+    camPos.z=0.0
+
+    local col1 = GREY
+    local col2 = GREEN
+    local colft = 100
+    local coltrig = framesPerPattern + 24*framesPerRow  -- note 5 on second pattern
+    local tToTrig = t - coltrig
+
+    if (tToTrig < 0) then
+        primaryColour = col1
+        highlightCol = YELLOW
+     else
+        if (tToTrig < colft) then
+            primaryColour = colourLerp(col1, col2, tToTrig/colft)
+            highlightCol = YELLOW
+        else
+            primaryColour = col2
+            highlightCol = BLUE
+        end
+    end
+
+    moveCamera(camPath_LissajousOverTime, t, 0.1, radius, -1.2, 1.5, 0.0, 0.0)
+    updateWorldLayers(t, layerPath_Origin, nil, layerDist_FarMesh, {spacing=32, firstLayerZ=32}, hoverColours, {fadeDepth=320.0, topLayer=6, highlightCol=highlightCol, fadeTime=75})
     if (totalFrames-t < 100) then globalFade = (totalFrames-t)/100 else globalFade=1.0 end
 end
 
@@ -594,15 +651,14 @@ function TIC()
     {fs=framesPerPattern*16,fn=part6,zs=-1},    -- lissajous forwards [highlights]
     {fs=framesPerPattern*20,fn=part7,zs=-1},    -- hover over moving [credits]
     {fs=framesPerPattern*24,fn=part3,zs=-1},    -- tight tunnel [bass]
-    {fs=framesPerPattern*28,fn=part5,zs=-1},     -- hover over [highlights 3]
-    {fs=framesPerPattern*32,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*32.5,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*33,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*33.5,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*34,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*34.5,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*35,fn=part4,zs=-1},    -- drum repeats
-    {fs=framesPerPattern*35.5,fn=part4a,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*28,fn=part5a,zs=-1},     -- hover over [highlights 3]
+    {fs=framesPerPattern*32,fn=part4c,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*32.5,fn=part4c,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*33,fn=part4c,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*33.5,fn=part4c,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*34,fn=part4c,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*34.5,fn=part4c,zs=-1},    -- drum repeats
+    {fs=framesPerPattern*35,fn=part4b,zs=-1},    -- drum repeats
  }
  
  df=frames()-f

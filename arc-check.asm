@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 1
-.equ _SYNC_EDITOR, 1                    ; (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
@@ -24,7 +24,7 @@
 .equ _MaxFrames, 7680
 .endif
 
-.equ MaxPatterns, 28
+.equ MaxPatterns, 36
 
 ; ============================================================================
 
@@ -632,6 +632,12 @@ debug_pattern_to_frame:
     frame_for_pattern 27
     frame_for_pattern 28
     frame_for_pattern 29
+    frame_for_pattern 30
+    frame_for_pattern 31
+    frame_for_pattern 32
+    frame_for_pattern 33
+    frame_for_pattern 34
+    frame_for_pattern 35
 .endif
 
 get_screen_addr:
