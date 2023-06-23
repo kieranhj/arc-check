@@ -2,10 +2,11 @@
 ; Archimedes Checkerboard Challenge!
 ; ============================================================================
 
-.equ _DEBUG, 1
+.equ _DEBUG, 0
 .equ _ENABLE_MUSIC, 1
 .equ _SYNC_EDITOR, 0                    ; (_ENABLE_ROCKET && 1)
 .equ _ENABLE_LUAPOD, 1
+.equ _ENABLE_LOOP, 0
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
 .equ _CHECK_FRAME_DROP, (!_DEBUG && 1)
@@ -115,6 +116,14 @@ main:
 
 .if _ENABLE_MUSIC
 	; QTM Init.
+    mov r0, #0b011
+    .if _ENABLE_LOOP
+    mov r1, #0b000
+    .else
+    mov r1, #0b010
+    .endif
+    swi QTM_MusicOptions
+
     mov r0, #1
     mov r1, #StereoPos_Ch1
     swi QTM_Stereo
@@ -211,7 +220,7 @@ main_loop:
 
 	; exit if Escape is pressed
 	swi OS_ReadEscapeState
-	bcs exit
+	bcs exit_no_wait
 	
 	.if _DEBUG
 	ldrb r0, debug_play_pause
@@ -247,7 +256,11 @@ main_loop:
     ldr r1, MaxFrames
     add r0, r0, #1
     cmp r0, r1
+    .if _ENABLE_LOOP
     movge r0, #0
+    .else
+    bge exit
+    .endif
     str r0, frame_counter
 
 main_loop_skip_tick:
@@ -650,7 +663,17 @@ get_screen_addr:
 screen_addr_input:
 	.long VD_ScreenStart, -1
 
-exit:	
+exit:
+    .if !_DEBUG
+    mov r1, #25
+    mov r0, #19
+    .1:
+    swi OS_Byte
+    subs r1, r1, #1
+    bne .1
+    .endif
+exit_no_wait:
+
 	; wait for vsync (any pending buffers)
 	.if _ENABLE_MUSIC
 	; disable music
@@ -683,10 +706,6 @@ exit:
 	mov r0, #OSByte_WriteVDUBank
 	ldr r1, write_bank
 	swi OS_Byte
-
-	; CLS
-	mov r0, #12
-	SWI OS_WriteC
 
 	; Flush keyboard buffer.
 	mov r0, #15
