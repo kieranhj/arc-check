@@ -9,7 +9,7 @@
 .equ _ENABLE_LOOP, 0
 
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
-.equ _CHECK_FRAME_DROP, (!_DEBUG && 1)
+.equ _CHECK_FRAME_DROP, (!_DEBUG && 0)
 
 .equ _DEBUG_STOP_ON_FRAME, -1           ; not used
 .equ _DEBUG_DEFAULT_PLAY_PAUSE, 1		; play

@@ -33,6 +33,12 @@ if %ERRORLEVEL% neq 0 (
 	exit /b 1
 )
 
+c:\dev\Python27\python.exe bin\png2arc_sprite.py --name !chequered -o build\icon.bin data\gfx\icon001.png 9
+if %ERRORLEVEL% neq 0 (
+	echo Failed to convert assets.
+	exit /b 1
+)
+
 
 echo Assembling code...
 bin\vasmarm_std_win32.exe -L build\compile.txt -m250 -Fvobj -opt-adr -o build\arc-check.o arc-check.asm
@@ -78,7 +84,7 @@ echo Extracting BASIC files...
 bin\bbcim -e build\basic_files.ssd screens
 
 echo Making !folder...
-set FOLDER="!Check"
+set FOLDER="!Chequered"
 if EXIST %FOLDER% del /Q "%FOLDER%"
 if NOT EXIST %FOLDER% mkdir %FOLDER%
 
@@ -87,6 +93,7 @@ set HOSTFS=..\arculator\hostfs
 echo Adding files...
 copy folder\*.* "%FOLDER%\*.*"
 copy build\loader.bin "%FOLDER%\!RunImage,ff8"
+copy build\icon.bin "%FOLDER%\!Sprites,ff9"
 copy build\arc-check.shri "%FOLDER%\Demo,ffd"
 copy build\basic_files.ssd.$.screens "%HOSTFS%\Screens,ffb"
 
