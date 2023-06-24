@@ -65,7 +65,7 @@ if %ERRORLEVEL% neq 0 (
 
 echo Shrinkling exe...
 rem bin\lz4.exe build\arc-check.bin
-bin\shrinkler.exe -d -b -p -z -r 200000 -1 build\arc-check.bin build\arc-check.shri
+bin\shrinkler.exe -d -b -p -z -r 200000 -4 build\arc-check.bin build\arc-check.shri
 
 if %ERRORLEVEL% neq 0 (
 	echo Failed to compress exe.
