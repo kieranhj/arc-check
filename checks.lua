@@ -3,7 +3,7 @@
 exportFile = nil -- io.open("lua_frames.txt", "w")
 -- exportFile:setvbuf("no")
 
-exportBin = io.open("lua_frames.bin", "wb")
+exportBin = nil -- io.open("lua_frames.bin", "wb")
 -- exportBin:setvbuf("no")
 
 debugFile=io.open("lua_debug.txt", "a")
@@ -703,12 +703,25 @@ function to_rgb(col)
     return 256*col.b+16*col.g+col.r
 end
 
+MaxX=-1.0
+MinX=1024.0
+
 function get_track_value(track_no)
  local layer_no = 1 + track_no // 4
  local field_no = track_no % 4
  local layer = cameraLayers[layer_no]
 
- if (field_no == 0) then return layer.x end
+ if (field_no == 0) then
+    if (layer.x > MaxX) then
+        MaxX = layer.x
+        io.write(string.format("MaxX=%f\n",MaxX))
+    end
+    if (layer.x < MinX) then
+        MinX = layer.x
+        io.write(string.format("MinX=%f\n",MinX))
+    end
+    return layer.x
+ end
  if (field_no == 1) then return layer.y end
  if (field_no == 2) then return layer.z end
  if (field_no == 3) then return 256*layer.c.b+16*layer.c.g+layer.c.r end

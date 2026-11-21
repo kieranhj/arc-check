@@ -49,7 +49,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo Linking code...
-bin\vlink.exe -T link_script.txt -b rawbin1 -o build\arc-check.bin build\arc-check.o -Mbuild\linker.txt
+bin\vlink.exe -T link_script.txt -b rawbin1 -o build\arc-check.bin build\arc-check.o -Mbuild\linker.txt -vicelabels build\vice.txt
 
 if %ERRORLEVEL% neq 0 (
 	echo Failed to link code.
