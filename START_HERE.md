@@ -18,7 +18,8 @@ The Checkerboard Challenge for the Acorn Archimedes: a small demo (`!Chequered`)
 
 ## Build and run
 
-- `make`: runs `make.bat`. Not run on 2026-11-22: it starts by emptying `build\`, then converts PNGs with Python 2.7 at `c:\dev\Python27\python.exe` (not on this machine), so it would fail and leave `build\` empty.
+- The `bin\*.py` converters were ported to Python 3 on 2026-11-22 (byte-identical output) and `make_compress.bat` now calls `py -3`.
+- `make`: runs `make.bat`. **Still blocked**: `make.bat` has an uncommitted local edit, so it was not changed and still calls `c:\dev\Python27\python.exe` (not on this machine). It empties `build\` first, so a failed run leaves `build\` empty. Fix: replace the 5 `c:\dev\Python27\python.exe` calls in `make.bat` with `py -3`.
 - `make compress` runs `make_compress.bat`; `make help` lists targets.
 - On success both scripts build `!Chequered` in the repo and copy it plus `Screens,ffb` into `..\arculator\hostfs` (`D:\archie\mine\arculator\hostfs`). Run `!Chequered` in Arculator.
 
