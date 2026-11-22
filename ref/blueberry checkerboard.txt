@@ -480,7 +480,15 @@ Anyway, don't worry about rewriting this unless the sequence dictates.
 TODO
 ~~~
 - Need to be able to skip forward to pattern. - DONE
-- Highlights for tunnel - grey ones spawned on notes?
-- Highlights on hover - light up layers in sequence bottom to top - fade length relative to note length.
+- Highlights for tunnel - grey ones spawned on notes? - DOESN'T WORK GIVEN MUSIC TEMPO
+- Highlights on hover - light up layers in sequence bottom to top - fade length relative to note length. - DONE
 - More colours options - RED, BLUE
-- Fade in for text screens?
+- Fade in for text screens? - DONE
+
+Post release
+~~~
+Quick note on whether the full extent of the checks are used.
+Row width is 1024 pixels, giving possible coordinate range 0 <= X < 704 (1024-320)
+Instrumenting the Lua script shows coordinate range 38 <= X <= 665 (1024-320-38)
+Therefore in theory we could use rows 948 pixels wide.
+This would save 152K. Not insubstantial but not going to get us back to 2Mb...

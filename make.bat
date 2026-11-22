@@ -10,31 +10,31 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo Converting assets...
-c:\dev\Python27\python.exe bin\png2arc.py -o build\screen1.bin data\gfx\bitshifters_updated__logo_1bit_320_256.png 9
+py -3 bin\png2arc.py -o build\screen1.bin data\gfx\bitshifters_updated__logo_1bit_320_256.png 9
 if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
 )
 
-c:\dev\Python27\python.exe bin\png2arc.py -o build\screen2.bin data\gfx\credits_UPDATED_chess_piece_with_names_and_border_1bit_320_256.png 9
+py -3 bin\png2arc.py -o build\screen2.bin data\gfx\credits_UPDATED_chess_piece_with_names_and_border_1bit_320_256.png 9
 if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
 )
 
-c:\dev\Python27\python.exe bin\png2arc.py -o build\screen3.bin data\gfx\greets02_1bit_320_256.png 9
+py -3 bin\png2arc.py -o build\screen3.bin data\gfx\greets02_1bit_320_256.png 9
 if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
 )
 
-c:\dev\Python27\python.exe bin\png2arc.py -o build\screen4.bin data\gfx\torment_1bit_320_256.png 9
+py -3 bin\png2arc.py -o build\screen4.bin data\gfx\torment_1bit_320_256.png 9
 if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
 )
 
-c:\dev\Python27\python.exe bin\png2arc_sprite.py --name !chequered -o build\icon.bin data\gfx\icon001.png 9
+py -3 bin\png2arc_sprite.py --name !chequered -o build\icon.bin data\gfx\icon001.png 9
 if %ERRORLEVEL% neq 0 (
 	echo Failed to convert assets.
 	exit /b 1
@@ -49,7 +49,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo Linking code...
-bin\vlink.exe -T link_script.txt -b rawbin1 -o build\arc-check.bin build\arc-check.o -Mbuild\linker.txt
+bin\vlink.exe -T link_script.txt -b rawbin1 -o build\arc-check.bin build\arc-check.o -Mbuild\linker.txt -vicelabels build\vice.txt
 
 if %ERRORLEVEL% neq 0 (
 	echo Failed to link code.
