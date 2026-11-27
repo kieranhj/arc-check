@@ -21,7 +21,7 @@ The Checkerboard Challenge for the Acorn Archimedes: a small demo (`!Chequered`)
 - The `bin\*.py` converters were ported to Python 3 on 2026-11-22 (byte-identical output) and `make_compress.bat` now calls `py -3`.
 - `make`: runs `make.bat` (`py -3` for the assets since 2026-11-22). Tested 2026-11-22, builds. It empties `build\` first.
 - `make compress` runs `make_compress.bat`; `make help` lists targets.
-- On success both scripts build `!Chequered` in the repo and copy it plus `Screens,ffb` into `..\arculator\hostfs` (`D:\archie\mine\arculator\hostfs`). Run `!Chequered` in Arculator.
+- On success both scripts build `!Chequered` in the repo and copy it plus `Screens,ffb` into `..\arculator\hostfs\Builds` (`D:\archie\mine\arculator\hostfs\Builds`). Run `!Chequered` in Arculator.
 
 ## Local changes
 

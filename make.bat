@@ -72,7 +72,7 @@ set FOLDER="!Chequered"
 if EXIST %FOLDER% del /Q "%FOLDER%"
 if NOT EXIST %FOLDER% mkdir %FOLDER%
 
-set HOSTFS=..\arculator\hostfs
+set HOSTFS=..\arculator\hostfs\Builds
 
 echo Adding files...
 copy folder\*.* "%FOLDER%\*.*"
