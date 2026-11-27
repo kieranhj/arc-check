@@ -4,8 +4,8 @@ The Checkerboard Challenge for the Acorn Archimedes: a small demo (`!Chequered`)
 
 | | |
 |---|---|
-| GitHub | https://github.com/kieranhj/arc-check (public) |
-| Local path | D:\archie\mine\arc-check (moved from OneDrive\Archie\Repos\arc-check on 2026-11-22) |
+| GitHub | https://github.com/bitshifters/arc-check (public; transferred from kieranhj/arc-check on 2026-11-27, old URL redirects) |
+| Local path | D:\bitshifters\arc-check (moved from D:\archie\mine on 2026-11-27; before that OneDrive\Archie\Repos) |
 | Branch | main; other branches: wip/2026-11-tidy, wip/dual-playfield, wip/lua-scripting, wip/self-mod-loop, wip/six-layers-only |
 | Last commit | 2023-06-24: Remove earlier MODs. |
 
